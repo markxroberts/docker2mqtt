@@ -112,6 +112,8 @@ if __name__ == '__main__':
         register_container({
             'name': container_status['Names'],
             'image': container_status['Image'],
+            'created': container_status['Created'],
+            'started at': container_status['State']['StartedAt'],
             'status': status_str,
             'state': state_str
         })
