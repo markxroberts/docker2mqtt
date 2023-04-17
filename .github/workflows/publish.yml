@@ -1,0 +1,26 @@
+name: publish
+on:
+  release:
+    types: [published]
+  push:
+    branches: [ main ]
+    # Publish semver tags as releases.
+    tags: [ '*.*.*' ]
+  pull_request:
+    branches: [ main ]
+jobs:
+publish-hello-docker-image:
+runs-on: ubuntu-latest
+steps:
+- uses: actions/checkout@v2
+- name: Login to GitHub Container Registry
+uses: docker/login-action@v1
+with:
+registry: ghcr.io
+username: ${{ github.actor }}
+password: ${{ secrets.GITHUB_TOKEN }}
+- name: Build the docker2mqtt Docker image
+run: |
+       docker build . --tag ghcr.io/markxroberts/docker2mqtt:latest
+       docker run ghcr.io/markxroberts/docker2mqtt:latest
+       docker push ghcr.io/markxroberts/docker2mqtt:latest
