@@ -5,6 +5,7 @@ import atexit
 import json
 import queue
 import re
+import datetime
 from os import environ
 from socket import gethostname
 from subprocess import run, Popen, PIPE
@@ -199,13 +200,13 @@ if __name__ == '__main__':
             print(f'Container {container} has started.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
-            known_containers[container]['started'] = event['time']
+            known_containers[container]['started'] = datetime.fromtimestamp(event['time'])
 
         elif event['status'] == 'unpause':
             print(f'Container {container} has unpaused.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
-            known_containers[container]['started'] = event['time']
+            known_containers[container]['started'] = datetime.fromtimestamp(event['time'])
 
         else:
             # Don't send an MQTT packet if nothing has changed
