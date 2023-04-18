@@ -98,6 +98,7 @@ if __name__ == '__main__':
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
         container_status = json.loads(line)
+        print(json.loads(line))
 
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
@@ -143,6 +144,7 @@ if __name__ == '__main__':
         event = json.loads(line)
         if event['status'] not in WATCHED_EVENTS:
             continue
+        print(json.loads(line))
 
         container = event['Actor']['Attributes']['name']
 
@@ -157,7 +159,8 @@ if __name__ == '__main__':
                 'name': container,
                 'image': event['from'],
                 'status': 'created',
-                'state': 'off'
+                'state': 'off',
+                'created': event['time'] 
             })
 
         elif event['status'] == 'destroy':
@@ -196,11 +199,13 @@ if __name__ == '__main__':
             print(f'Container {container} has started.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
+            known_containers[container]['started'] = event['time']
 
         elif event['status'] == 'unpause':
             print(f'Container {container} has unpaused.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
+            known_containers[container]['started'] = event['time']
 
         else:
             # Don't send an MQTT packet if nothing has changed
