@@ -113,7 +113,7 @@ if __name__ == '__main__':
         register_container({
             'name': container_status['Names'],
             'image': container_status['Image'],
-            'time': container_status['time'],
+            'created': container_status['CreatedAt'],
             'status': status_str,
             'state': state_str
         })
@@ -160,7 +160,7 @@ if __name__ == '__main__':
                 'image': event['from'],
                 'status': 'created',
                 'state': 'off',
-                'created': event['time'] 
+                'created': event['CreatedAt'] 
             })
 
         elif event['status'] == 'destroy':
