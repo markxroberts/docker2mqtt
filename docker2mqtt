@@ -197,16 +197,18 @@ if __name__ == '__main__':
             del(known_containers[old_name])
 
         elif event['status'] == 'start':
+            start_time = datetime.datetime.fromtimestamp(event['time'])
             print(f'Container {container} has started.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
-            known_containers[container]['started'] = datetime.fromtimestamp(event['time'])
+            known_containers[container]['started'] = start_time
 
         elif event['status'] == 'unpause':
+            start_time = datetime.datetime.fromtimestamp(event['time'])
             print(f'Container {container} has unpaused.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
-            known_containers[container]['started'] = datetime.fromtimestamp(event['time'])
+            known_containers[container]['started'] = start_time
 
         else:
             # Don't send an MQTT packet if nothing has changed
