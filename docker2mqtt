@@ -63,9 +63,9 @@ def register_container(container_entry):
     """
     # Discover binary_sensor
     known_containers[container_entry['name']] = container_entry
-    registration_topic_status = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
+    registration_topic_status = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', container_entry['name'])) + "status"
     registration_packet_status = {
-        'name': f"{MQTT_TOPIC_PREFIX.title()} {container_entry['name']} state",
+        'name': f'{MQTT_TOPIC_PREFIX.title()} {container_entry["name"]} state',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{DOCKER2MQTT_HOSTNAME}_{registration_topic_status}',
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/status',
         'payload_available': 'online',
@@ -82,9 +82,9 @@ def register_container(container_entry):
 
     # Discover 'started' sensor
     known_containers[container_entry['name']] = container_entry
-    registration_topic_started = DISCOVERY_TOPIC_STARTED.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
+    registration_topic_started = DISCOVERY_TOPIC_STARTED.format(invalid_ha_topic_chars.sub('_', container_entry['name'])) + "started"
     registration_packet_started = {
-        'name': f"{MQTT_TOPIC_PREFIX.title()} {container_entry['name']} started",
+        'name': f'{MQTT_TOPIC_PREFIX.title()} {container_entry["name"]} started',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{DOCKER2MQTT_HOSTNAME}_{registration_topic_started}',
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/status',
         'payload_available': 'online',
@@ -101,9 +101,9 @@ def register_container(container_entry):
 
     # Discover 'created' sensor
     known_containers[container_entry['name']] = container_entry
-    registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
+    registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', container_entry['name'])) + "created"
     registration_packet_created = {
-        'name': f"{MQTT_TOPIC_PREFIX.title()} {container_entry['name']} created",
+        'name': f'{MQTT_TOPIC_PREFIX.title()} {container_entry["name"]} created',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{DOCKER2MQTT_HOSTNAME}_{registration_topic_created}',
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/status',
         'payload_available': 'online',
