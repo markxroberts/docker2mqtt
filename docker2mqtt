@@ -35,6 +35,7 @@ known_containers = {}
 pending_destroy_operations = {}
 docker_events_cmd = ['docker', 'events', '-f', 'type=container', '--format', '{{json .}}']
 docker_ps_cmd = ['docker', 'ps', '-a', '--format', '{{json .}}']
+docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}']
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 
 
@@ -140,6 +141,7 @@ if __name__ == '__main__':
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
         container_status = json.loads(line)
+        container_details = 'unknown'
         print(json.loads(line))
 
         if 'Paused' in container_status['Status']:
@@ -148,6 +150,7 @@ if __name__ == '__main__':
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
+            container_details = run(docker_inspect_cmd, container_status['Names'])
         else:
             status_str = 'stopped'
             state_str = 'off'
@@ -157,7 +160,9 @@ if __name__ == '__main__':
             'image': container_status['Image'],
             'created': container_status['CreatedAt'],
             'status': status_str,
-            'state': state_str
+            'state': state_str,
+            'started': container_details['State']['StartedAt'],
+            'ip': container_details['NetworkSettings']['IPAddress']
         })
 
     # Start the docker events thread
@@ -203,12 +208,16 @@ if __name__ == '__main__':
                 print(f'Removing pending delete for {{container}}.')
                 del(pending_destroy_operations[container])
 
+            container_details = run(docker_inspect_cmd, container)
+
             register_container({
                 'name': container,
                 'image': event['from'],
                 'status': 'created',
                 'state': 'off',
-                'created': event['CreatedAt'] 
+                'created': event['CreatedAt'],
+                'started': container_details['State']['StartedAt'],
+                'ip': container_details['NetworkSettings']['IPAddress']
             })
 
         elif event['status'] == 'destroy':
@@ -239,11 +248,17 @@ if __name__ == '__main__':
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{old_name}', '', retain=True)
             mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{old_name}_created/config', '', retain=True)
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{old_name}', '', retain=True)
+
+            container_details = run(docker_inspect_cmd, container)
+
             register_container({
                 'name': container,
                 'image': known_containers[old_name]['image'],
                 'status': known_containers[old_name]['status'],
-                'state': known_containers[old_name]['state']
+                'state': known_containers[old_name]['state'],
+                'created': event['CreatedAt'],
+                'started': container_details['State']['StartedAt'],
+                'ip': container_details['NetworkSettings']['IPAddress']
             })
             del(known_containers[old_name])
 
