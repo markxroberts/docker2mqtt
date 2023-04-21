@@ -141,8 +141,10 @@ if __name__ == '__main__':
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
         container_status = json.loads(line)
-        container_name = container_status['Names']
+        container_details = 'unknown'
         print(json.loads(line))
+        for item in container_status['Names']:
+            container_status['Command'] = docker_inspect_cmd + item
 
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
@@ -150,7 +152,7 @@ if __name__ == '__main__':
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
-            container_details = run(docker_inspect_cmd + container_name, stdout=PIPE, text=True)
+            container_details = run(container_status['Command'], stdout=PIPE, text=True)
         else:
             status_str = 'stopped'
             state_str = 'off'
