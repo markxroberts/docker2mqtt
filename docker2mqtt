@@ -141,7 +141,6 @@ if __name__ == '__main__':
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
         container_status = json.loads(line)
-        container_details = 'unknown'
         container_name = container_status['Names']
         print(json.loads(line))
 
