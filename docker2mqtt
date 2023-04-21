@@ -35,7 +35,7 @@ known_containers = {}
 pending_destroy_operations = {}
 docker_events_cmd = ['docker', 'events', '-f', 'type=container', '--format', '{{json .}}']
 docker_ps_cmd = ['docker', 'ps', '-a', '--format', '{{json .}}']
-docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}, ']
+docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 
 
