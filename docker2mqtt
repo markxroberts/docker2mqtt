@@ -154,7 +154,7 @@ if __name__ == '__main__':
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
-            container_details = run(docker_inspect_cmd, stdout=PIPE, text=True)
+            container_details = json.loads(run(docker_inspect_cmd, stdout=PIPE, text=True))
             print(container_details)
         else:
             status_str = 'stopped'
@@ -214,7 +214,7 @@ if __name__ == '__main__':
                 print(f'Removing pending delete for {{container}}.')
                 del(pending_destroy_operations[container])
 
-            container_details = run(docker_inspect_cmd, stdout=PIPE, text=True)
+            container_details = json.loads(run(docker_inspect_cmd, stdout=PIPE, text=True))
 
             register_container({
                 'name': container,
@@ -255,7 +255,7 @@ if __name__ == '__main__':
             mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{old_name}_created/config', '', retain=True)
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{old_name}', '', retain=True)
 
-            container_details = run(docker_inspect_cmd, stdout=PIPE, text=True)
+            container_details = json.loads(run(docker_inspect_cmd, stdout=PIPE, text=True))
 
             register_container({
                 'name': container,
