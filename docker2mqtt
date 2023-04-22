@@ -143,7 +143,8 @@ if __name__ == '__main__':
         container_status = json.loads(line)
         container_details = 'unknown'
         print(json.loads(line))
-        container_inspect = docker_inspect_cmd.append(container_status["Names"])
+        container_inspect = docker_inspect_cmd.append(container_status['Names'])
+        print(container_inspect)
 
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
