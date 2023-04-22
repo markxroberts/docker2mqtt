@@ -146,6 +146,7 @@ if __name__ == '__main__':
         print(docker_inspect_cmd)
         print(container_status['Names'])
         docker_inspect_cmd.append(container_status['Names'])
+        print(docker_inspect_cmd)
 
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
@@ -154,6 +155,7 @@ if __name__ == '__main__':
             status_str = 'running'
             state_str = 'on'
             container_details = run(docker_inspect_cmd, stdout=PIPE, text=True)
+            print(container_details)
         else:
             status_str = 'stopped'
             state_str = 'off'
