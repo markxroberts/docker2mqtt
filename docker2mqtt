@@ -144,12 +144,11 @@ if __name__ == '__main__':
         container_status = json.loads(line)
         for each_container in container_status['Names']:
             print(each_container)
-            docker_register_inspect = docker_events_cmd + each_container
+            docker_register_inspect = docker_events_cmd
+            docker_register_inspect.append(each_container)
             print(docker_register_inspect)
         container_details = 'unknown'
         print(json.loads(line))
-        docker_register_inspect = docker_inspect_cmd
-        print(docker_register_inspect)
 
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
