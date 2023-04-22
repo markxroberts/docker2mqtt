@@ -155,7 +155,7 @@ if __name__ == '__main__':
             state_str = 'on'
             container_inspect = run(docker_inspect, stdout=PIPE, text=True)
             container_details = json.loads(container_inspect.stdout)
-            docker_inspect.clear()
+            docker_inspect.remove(container_status['Names'])
         else:
             status_str = 'stopped'
             state_str = 'off'
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 
             container_inspect = run(docker_inspect, stdout=PIPE, text=True)
             container_details = json.loads(container_inspect.stdout)
-            docker_inspect.clear()
+            docker_inspect.remove(container)
 
             register_container({
                 'name': container,
@@ -260,7 +260,7 @@ if __name__ == '__main__':
 
             container_inspect = run(docker_inspect, stdout=PIPE, text=True)
             container_details = json.loads(container_inspect.stdout)
-            docker_inspect.clear()
+            docker_inspect.remove(container)
 
             register_container({
                 'name': container,
