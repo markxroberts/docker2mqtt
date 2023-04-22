@@ -142,10 +142,12 @@ if __name__ == '__main__':
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
         container_status = json.loads(line)
+        for each_container in container_status['Names']:
+            docker_register_inspect = docker_events_cmd + container_status['Names']
+            print(docker_register_inspect)
         container_details = 'unknown'
         print(json.loads(line))
         docker_register_inspect = docker_inspect_cmd
-        docker_register_inspect.append(container_status['Names'])
         print(docker_register_inspect)
 
         if 'Paused' in container_status['Status']:
@@ -156,9 +158,8 @@ if __name__ == '__main__':
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
-            container_inspect = run(docker_register_inspect, stdout=PIPE, text=True)
+            container_inspect = run(docker_register_inspect['Names'], stdout=PIPE, text=True)
             container_details = json.loads(container_inspect.stdout)
-            docker_register_inspect.remove(container_status['Names'])
             started = container_details['State']['StartedAt']
             ip = container_details['NetworkSettings']['IPAddress']
         else:
