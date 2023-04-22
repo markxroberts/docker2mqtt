@@ -155,7 +155,7 @@ if __name__ == '__main__':
             status_str = 'running'
             state_str = 'on'
             container_inspect = run(docker_inspect_cmd, stdout=PIPE, text=True)
-            container_details = json.loads(container_inspect)
+            container_details = json.load(container_inspect)
         else:
             status_str = 'stopped'
             state_str = 'off'
@@ -215,7 +215,7 @@ if __name__ == '__main__':
                 del(pending_destroy_operations[container])
 
             container_inspect = run(docker_inspect_cmd, stdout=PIPE, text=True)
-            container_details = json.loads(container_inspect)
+            container_details = json.load(container_inspect)
 
 
             register_container({
@@ -258,7 +258,7 @@ if __name__ == '__main__':
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{old_name}', '', retain=True)
 
             container_inspect = run(docker_inspect_cmd, stdout=PIPE, text=True)
-            container_details = json.loads(container_inspect)
+            container_details = json.load(container_inspect)
 
 
             register_container({
