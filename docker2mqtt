@@ -30,6 +30,7 @@ DISCOVERY_TOPIC_STATE = f'{HOMEASSISTANT_PREFIX}/binary_sensor/{MQTT_TOPIC_PREFI
 DISCOVERY_TOPIC_STARTED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}_{{}}_started/config'
 DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}_{{}}_created/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
+UP_EVENTS = ('create', 'rename', 'start', 'unpause')
 
 known_containers = {}
 pending_destroy_operations = {}
@@ -143,9 +144,9 @@ if __name__ == '__main__':
         container_status = json.loads(line)
         container_details = 'unknown'
         print(json.loads(line))
-        docker_inspect = docker_inspect_cmd
-        docker_inspect.append(container_status['Names'])
-        print(docker_inspect)
+        docker_register_inspect = docker_inspect_cmd
+        docker_register_inspect.append(container_status['Names'])
+        print(docker_register_inspect)
 
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
@@ -155,9 +156,9 @@ if __name__ == '__main__':
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
-            container_inspect = run(docker_inspect, stdout=PIPE, text=True)
+            container_inspect = run(docker_register_inspect, stdout=PIPE, text=True)
             container_details = json.loads(container_inspect.stdout)
-            docker_inspect.remove(container_status['Names'])
+            docker_register_inspect.remove(container_status['Names'])
             started = container_details['State']['StartedAt']
             ip = container_details['NetworkSettings']['IPAddress']
         else:
@@ -211,8 +212,13 @@ if __name__ == '__main__':
         print(json.loads(line))
 
         container = event['Actor']['Attributes']['name']
-        docker_inspect = docker_inspect_cmd
-        docker_inspect.append(container)
+
+        if event['status'] in UP_EVENTS:
+            docker_event_inspect = docker_inspect_cmd
+            docker_event_inspect.append(container)
+            container_event_inspect = run(docker_event_inspect, stdout=PIPE, text=True)
+            container_event_details = json.loads(container_event_inspect.stdout)
+            docker_event_inspect.remove(container)
 
         if event['status'] == 'create':
             # Cancel any previous pending destroys and add this to known_containers.
@@ -221,18 +227,14 @@ if __name__ == '__main__':
                 print(f'Removing pending delete for {{container}}.')
                 del(pending_destroy_operations[container])
 
-            container_inspect = run(docker_inspect, stdout=PIPE, text=True)
-            container_details = json.loads(container_inspect.stdout)
-            docker_inspect.remove(container)
-
             register_container({
                 'name': container,
                 'image': event['from'],
                 'status': 'created',
                 'state': 'off',
                 'created': event['CreatedAt'],
-                'started': container_details['State']['StartedAt'],
-                'ip': container_details['NetworkSettings']['IPAddress']
+                'started': container_event_details['State']['StartedAt'],
+                'ip': container_event_details['NetworkSettings']['IPAddress']
             })
 
         elif event['status'] == 'destroy':
@@ -271,10 +273,6 @@ if __name__ == '__main__':
             mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{old_name}_created/config', '', retain=True)
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{old_name}', '', retain=True)
 
-            container_inspect = run(docker_inspect, stdout=PIPE, text=True)
-            container_details = json.loads(container_inspect.stdout)
-            docker_inspect.remove(container)
-
             register_container({
                 'name': container,
                 'image': known_containers[old_name]['image'],
@@ -287,9 +285,6 @@ if __name__ == '__main__':
             del(known_containers[old_name])
 
         elif event['status'] == 'start':
-            container_inspect = run(docker_inspect, stdout=PIPE, text=True)
-            container_details = json.loads(container_inspect.stdout)
-            docker_inspect.remove(container)
             print(f'Container {container} has started.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
@@ -297,9 +292,6 @@ if __name__ == '__main__':
             known_containers[container]['ip'] = container_details['NetworkSettings']['IPAddress']
 
         elif event['status'] == 'unpause':
-            container_inspect = run(docker_inspect, stdout=PIPE, text=True)
-            container_details = json.loads(container_inspect.stdout)
-            docker_inspect.remove(container)
             print(f'Container {container} has unpaused.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
