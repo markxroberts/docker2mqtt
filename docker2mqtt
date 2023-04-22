@@ -150,15 +150,21 @@ if __name__ == '__main__':
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
             state_str = 'off'
+            started = 'unavailable'
+            ip = 'unavailable'
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
             container_inspect = run(docker_inspect, stdout=PIPE, text=True)
             container_details = json.loads(container_inspect.stdout)
             docker_inspect.remove(container_status['Names'])
+            started = container_details['State']['StartedAt']
+            ip = container_details['NetworkSettings']['IPAddress']
         else:
             status_str = 'stopped'
             state_str = 'off'
+            started = 'unavailable'
+            ip = 'unavailable'
         
         register_container({
             'name': container_status['Names'],
@@ -166,8 +172,8 @@ if __name__ == '__main__':
             'created': container_status['CreatedAt'],
             'status': status_str,
             'state': state_str,
-            'started': container_details['State']['StartedAt'],
-            'ip': container_details['NetworkSettings']['IPAddress']
+            'started': started,
+            'ip': ip
         })
 
     # Start the docker events thread
@@ -235,16 +241,23 @@ if __name__ == '__main__':
             pending_destroy_operations[container] = time()
             known_containers[container]['status'] = 'destroyed'
             known_containers[container]['state'] = 'off'
+            known_containers[container]['started'] = 'unavailable'
+            known_containers[container]['ip'] = 'unavailable'
+
 
         elif event['status'] == 'die':
             print(f'Container {container} has stopped.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
+            known_containers[container]['started'] = 'unavailable'
+            known_containers[container]['ip'] = 'unavailable'
 
         elif event['status'] == 'pause':
             print(f'Container {container} has paused.')
             known_containers[container]['status'] = 'paused'
             known_containers[container]['state'] = 'off'
+            known_containers[container]['started'] = 'unavailable'
+            known_containers[container]['ip'] = 'unavailable'
 
         elif event['status'] == 'rename':
             old_name = event['Actor']['Attributes']['oldName']
@@ -274,18 +287,24 @@ if __name__ == '__main__':
             del(known_containers[old_name])
 
         elif event['status'] == 'start':
-            start_time = str(datetime.datetime.fromtimestamp(event['time'])) + "Z"
+            container_inspect = run(docker_inspect, stdout=PIPE, text=True)
+            container_details = json.loads(container_inspect.stdout)
+            docker_inspect.remove(container)
             print(f'Container {container} has started.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
-            known_containers[container]['started'] = start_time
+            known_containers[container]['started'] = container_details['State']['StartedAt']
+            known_containers[container]['ip'] = container_details['NetworkSettings']['IPAddress']
 
         elif event['status'] == 'unpause':
-            start_time = str(datetime.datetime.fromtimestamp(event['time'])) + "Z"
+            container_inspect = run(docker_inspect, stdout=PIPE, text=True)
+            container_details = json.loads(container_inspect.stdout)
+            docker_inspect.remove(container)
             print(f'Container {container} has unpaused.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
-            known_containers[container]['started'] = start_time
+            known_containers[container]['started'] = container_details['State']['StartedAt']
+            known_containers[container]['ip'] = container_details['NetworkSettings']['IPAddress']
 
         else:
             # Don't send an MQTT packet if nothing has changed
