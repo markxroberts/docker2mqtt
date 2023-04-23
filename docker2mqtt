@@ -118,7 +118,7 @@ def register_container(container_entry):
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_created',
     }
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created), retain=True)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}', json.dumps(container_entry), retain=True)
+    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_created', json.dumps(container_entry), retain=True)
 
 
 def readline_thread():
