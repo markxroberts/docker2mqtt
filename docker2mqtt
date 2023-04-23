@@ -158,6 +158,7 @@ if __name__ == '__main__':
             print(docker_register_inspect)
             container_inspect = run(docker_register_inspect, stdout=PIPE, text=True)
             container_details = json.loads(container_inspect.stdout)
+            print(container_details)
             docker_register_inspect.remove(container_status['Names'])
             started = container_details['State']['StartedAt']
             ip = container_details['NetworkSettings']['IPAddress']
