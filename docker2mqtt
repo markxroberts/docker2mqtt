@@ -152,9 +152,9 @@ if __name__ == '__main__':
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
             state_str = 'off'
-            created = 'unavailable'
-            started = 'unavailable'
-            ip = 'unavailable'
+            created = ''
+            started = ''
+            ipaddress = ''
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
@@ -169,13 +169,14 @@ if __name__ == '__main__':
             created = container_details['Created']
             ip ={}
             for adapter in container_details['NetworkSettings']['Networks']:
-              ip = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
+              ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
+              ipaddress = ip['IPAddress']
         else:
             status_str = 'stopped'
             state_str = 'off'
-            created = 'unavailable'
-            started = 'unavailable'
-            ip = 'unavailable'
+            created = ''
+            started = ''
+            ipaddress = ''
         
         register_container({
             'name': container_status['Names'],
@@ -184,7 +185,7 @@ if __name__ == '__main__':
             'status': status_str,
             'state': state_str,
             'started': started,
-            'ip': ip
+            'ip': ipaddress
         })
 
     # Start the docker events thread
@@ -231,7 +232,8 @@ if __name__ == '__main__':
             docker_event_inspect.remove(container)
             ip = {}
             for adapter in container_event_details['NetworkSettings']['Networks']:
-              ip = container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
+              ip[adapter] = container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
+              ipaddress = ip['IPAddress']
 
         if event['status'] == 'create':
             # Cancel any previous pending destroys and add this to known_containers.
@@ -247,7 +249,7 @@ if __name__ == '__main__':
                 'state': 'off',
                 'created': container_event_details['Created'],
                 'started': container_event_details['State']['StartedAt'],
-                'ip': ip
+                'ip': ipaddress
             })
 
         elif event['status'] == 'destroy':
@@ -258,24 +260,24 @@ if __name__ == '__main__':
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = 'unavailable'
             known_containers[container]['started'] = 'unavailable'
-            known_containers[container]['ip'] = 'unavailable'
+            known_containers[container]['ipaddress'] = ''
 
 
         elif event['status'] == 'die':
             print(f'Container {container} has stopped.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
-            known_containers[container]['created'] = 'unavailable'
-            known_containers[container]['started'] = 'unavailable'
-            known_containers[container]['ip'] = 'unavailable'
+            known_containers[container]['created'] = ''
+            known_containers[container]['started'] = ''
+            known_containers[container]['ipaddress'] = ''
 
         elif event['status'] == 'pause':
             print(f'Container {container} has paused.')
             known_containers[container]['status'] = 'paused'
             known_containers[container]['state'] = 'off'
-            known_containers[container]['created'] = 'unavailable'
-            known_containers[container]['started'] = 'unavailable'
-            known_containers[container]['ip'] = 'unavailable'
+            known_containers[container]['created'] = ''
+            known_containers[container]['started'] = ''
+            known_containers[container]['ipaddress'] = ''
 
         elif event['status'] == 'rename':
             old_name = event['Actor']['Attributes']['oldName']
@@ -296,7 +298,7 @@ if __name__ == '__main__':
                 'state': known_containers[old_name]['state'],
                 'created': container_details['Created'],
                 'started': container_details['State']['StartedAt'],
-                'ip': container_details['NetworkSettings']['IPAddress']
+                'ip': ipaddress
             })
             del(known_containers[old_name])
 
@@ -306,7 +308,7 @@ if __name__ == '__main__':
             known_containers[container]['state'] = 'on'
             known_containers[container]['created'] = container_details['Created']
             known_containers[container]['started'] = container_details['State']['StartedAt']
-            known_containers[container]['ip'] = container_details['NetworkSettings']['IPAddress']
+            known_containers[container]['ip'] = ipaddress
 
         elif event['status'] == 'unpause':
             print(f'Container {container} has unpaused.')
@@ -314,7 +316,7 @@ if __name__ == '__main__':
             known_containers[container]['state'] = 'on'
             known_containers[container]['created'] = container_details['Created']
             known_containers[container]['started'] = container_details['State']['StartedAt']
-            known_containers[container]['ip'] = container_details['NetworkSettings']['IPAddress']
+            known_containers[container]['ip'] = ipaddress
 
         else:
             # Don't send an MQTT packet if nothing has changed
