@@ -162,8 +162,10 @@ if __name__ == '__main__':
             print(container_details)
             docker_register_inspect.remove(container_status['Names'])
             started = container_details['State']['StartedAt']
-            ip = container_details['NetworkSettings']['IPAddress']
             created = container_details['Created']
+            ip ={}
+            for adapter in container_details['NetworkSettings']['Networks']:
+              ip[adapter]= container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
         else:
             status_str = 'stopped'
             state_str = 'off'
@@ -223,6 +225,9 @@ if __name__ == '__main__':
             container_event_inspect = run(docker_event_inspect, stdout=PIPE, text=True)
             container_event_details = json.loads(container_event_inspect.stdout)
             docker_event_inspect.remove(container)
+            ip = {}
+            for adapter in container_event_details['NetworkSettings']['Networks']:
+              ip[adapter]= container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
 
         if event['status'] == 'create':
             # Cancel any previous pending destroys and add this to known_containers.
@@ -238,7 +243,7 @@ if __name__ == '__main__':
                 'state': 'off',
                 'created': container_event_details['Created'],
                 'started': container_event_details['State']['StartedAt'],
-                'ip': container_event_details['NetworkSettings']['IPAddress']
+                'ip': ip
             })
 
         elif event['status'] == 'destroy':
