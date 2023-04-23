@@ -179,8 +179,8 @@ if __name__ == '__main__':
             ip ={}
             for adapter in container_details['NetworkSettings']['Networks']:
               ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
-              print(ip[adapter])
               ipaddress = f'{ip[adapter]}'
+              print(ipaddress)
         else:
             status_str = 'stopped'
             state_str = 'off'
@@ -195,7 +195,7 @@ if __name__ == '__main__':
             'status': status_str,
             'state': state_str,
             'started': started,
-            'ip': [ipaddress]
+            'ip': ipaddress
         })
 
     # Start the docker events thread
