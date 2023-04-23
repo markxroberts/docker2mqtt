@@ -180,7 +180,7 @@ if __name__ == '__main__':
             for adapter in container_details['NetworkSettings']['Networks']:
               ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
               print(ip[adapter])
-              ipaddress = ip[adapter]
+              ipaddress = f'{ip[adapter]}'
         else:
             status_str = 'stopped'
             state_str = 'off'
@@ -244,7 +244,7 @@ if __name__ == '__main__':
             for adapter in container_event_details['NetworkSettings']['Networks']:
               ip[adapter] = container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
               print(ip[adapter])
-              ipaddress = ip[adapter]
+              ipaddress = f'{ip[adapter]}'
 
         if event['status'] == 'create':
             # Cancel any previous pending destroys and add this to known_containers.
@@ -260,7 +260,7 @@ if __name__ == '__main__':
                 'state': 'off',
                 'created': container_event_details['Created'],
                 'started': container_event_details['State']['StartedAt'],
-                'ip': [ipaddress]
+                'ip': ipaddress
             })
 
         elif event['status'] == 'destroy':
@@ -309,7 +309,7 @@ if __name__ == '__main__':
                 'state': known_containers[old_name]['state'],
                 'created': container_details['Created'],
                 'started': container_details['State']['StartedAt'],
-                'ip': [ipaddress]
+                'ip': ipaddress
             })
             del(known_containers[old_name])
 
