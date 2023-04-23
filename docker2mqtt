@@ -195,7 +195,7 @@ if __name__ == '__main__':
             'status': status_str,
             'state': state_str,
             'started': started,
-            'ip': ipaddress
+            'ip': [ipaddress]
         })
 
     # Start the docker events thread
@@ -260,7 +260,7 @@ if __name__ == '__main__':
                 'state': 'off',
                 'created': container_event_details['Created'],
                 'started': container_event_details['State']['StartedAt'],
-                'ip': ipaddress
+                'ip': [ipaddress]
             })
 
         elif event['status'] == 'destroy':
@@ -309,7 +309,7 @@ if __name__ == '__main__':
                 'state': known_containers[old_name]['state'],
                 'created': container_details['Created'],
                 'started': container_details['State']['StartedAt'],
-                'ip': ipaddress
+                'ip': [ipaddress]
             })
             del(known_containers[old_name])
 
@@ -319,7 +319,7 @@ if __name__ == '__main__':
             known_containers[container]['state'] = 'on'
             known_containers[container]['created'] = container_details['Created']
             known_containers[container]['started'] = container_details['State']['StartedAt']
-            known_containers[container]['ip'] = ipaddress
+            known_containers[container]['ip'] = [ipaddress]
 
         elif event['status'] == 'unpause':
             print(f'Container {container} has unpaused.')
@@ -327,7 +327,7 @@ if __name__ == '__main__':
             known_containers[container]['state'] = 'on'
             known_containers[container]['created'] = container_details['Created']
             known_containers[container]['started'] = container_details['State']['StartedAt']
-            known_containers[container]['ip'] = ipaddress
+            known_containers[container]['ip'] = [ipaddress]
 
         else:
             # Don't send an MQTT packet if nothing has changed
