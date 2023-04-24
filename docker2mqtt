@@ -83,7 +83,7 @@ def register_container(container_entry):
         'payload_on': 'on',
         'payload_off': 'off',
         'device_class': 'connectivity',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status',
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status'
     }
     mqtt_send(registration_topic_status, json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status', json.dumps(container_entry), retain=True)
@@ -99,13 +99,13 @@ def register_container(container_entry):
         'payload_available': 'online',
         'payload_not_available': 'offline',
         'state_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status',
-        'command_topic' f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
+        'command_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch',
         'value_template': '{{ value_json.state }}',
         'payload_on': 'on',
         'payload_off': 'off',
         'state_on': 'on',
         'state_off': 'off',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch',
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
     }
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status', json.dumps(container_entry), retain=True)
@@ -126,7 +126,7 @@ def register_container(container_entry):
         'payload_on': 'on',
         'payload_off': 'off',
         'device_class': 'timestamp',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started',
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started'
     }
     mqtt_send(registration_topic_started, json.dumps(registration_packet_started, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started', json.dumps(container_entry), retain=True)
@@ -146,7 +146,7 @@ def register_container(container_entry):
         'payload_on': 'on',
         'payload_off': 'off',
         'device_class': 'timestamp',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created',
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created'
     }
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created', json.dumps(container_entry), retain=True)
