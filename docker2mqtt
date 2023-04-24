@@ -161,8 +161,7 @@ def readline_thread():
 
 def on_message(client, userdata, message):
     decoded_message=str(message.payload.decode("utf-8"))
-    msg=json.loads(decoded_message)
-    print(msg)
+    print(decoded_message)
 
 if __name__ == '__main__':
     # Setup MQTT
