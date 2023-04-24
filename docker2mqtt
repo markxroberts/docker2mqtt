@@ -99,7 +99,7 @@ def register_container(container_entry):
         'payload_available': 'online',
         'payload_not_available': 'offline',
         'state_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status',
-        'command_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch',
+        'command_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_set',
         'value_template': '{{ value_json.state }}',
         'payload_on': 'on',
         'payload_off': 'off',
