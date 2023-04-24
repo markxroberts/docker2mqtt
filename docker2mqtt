@@ -81,10 +81,7 @@ def register_container(container_entry):
         'device_class': 'connectivity',
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_status',
     }
-    print(registration_packet_status)
-    print(type(registration_packet_status))
-    json_registration_status = json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4)
-    mqtt_send(registration_topic_status, json_registration_status, retain=True)
+    mqtt_send(registration_topic_status, json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_status', json.dumps(container_entry), retain=True)
 
     # Discover 'started' sensor
@@ -104,8 +101,7 @@ def register_container(container_entry):
         'device_class': 'timestamp',
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_started',
     }
-    json_registration_started = json.dumps(registration_packet_created.__dict__, default=lambda o: o.__dict__, indent=4)
-    mqtt_send(registration_topic_started, json_registration_started, retain=True)
+    mqtt_send(registration_topic_started, json.dumps(registration_packet_started, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_started', json.dumps(container_entry), retain=True)
 
     # Discover 'created' sensor
@@ -125,8 +121,7 @@ def register_container(container_entry):
         'device_class': 'timestamp',
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_created',
     }
-    json_registration_created = json.dumps(registration_packet_created.__dict__, default=lambda o: o.__dict__, indent=4)
-    mqtt_send(registration_topic_created, json_registration_created, retain=True)
+    mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_created', json.dumps(container_entry), retain=True)
 
 
