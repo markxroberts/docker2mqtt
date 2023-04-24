@@ -82,7 +82,8 @@ def register_container(container_entry):
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_status',
     }
     print(registration_packet_status)
-    json_registration_status = json.dumps(registration_packet_status.__dict__, default=lambda o: o.__dict__, indent=4)
+    print(type(registration_packet_status))
+    json_registration_status = json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4)
     mqtt_send(registration_topic_status, json_registration_status, retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}_status', json.dumps(container_entry), retain=True)
 
