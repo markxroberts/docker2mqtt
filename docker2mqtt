@@ -93,7 +93,7 @@ def register_container(container_entry):
     registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
     registration_packet_switch = {
         'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]} switch',
-        'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_status}',
+        'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_switch}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["image"]}', 'manufacturer': 'Docker' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
         'payload_available': 'online',
@@ -108,7 +108,7 @@ def register_container(container_entry):
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
     }
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status', json.dumps(container_entry), retain=True)
+    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch', json.dumps(container_entry), retain=True)
     mqtt_receive(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_set')
 
     # Discover 'started' sensor
