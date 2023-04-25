@@ -99,7 +99,7 @@ def register_container(container_entry):
         'payload_available': 'online',
         'payload_not_available': 'offline',
         'state_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status',
-        'command_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch_set',
+        'command_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set',
         'value_template': '{{ value_json.state }}',
         'payload_on': 'on',
         'payload_off': 'off',
@@ -109,7 +109,7 @@ def register_container(container_entry):
     }
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch', json.dumps(container_entry), retain=True)
-    mqtt_receive(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch_set')
+    mqtt_receive(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set')
 
     # Discover 'started' sensor
     known_containers[container_entry['name']] = container_entry
@@ -160,6 +160,8 @@ def readline_thread():
             docker_events.put(proc.stdout.readline())
 
 def on_message(client, userdata, message):
+    print(f'Message received')
+    print(f'Whole message: {message}')
     print(f'Switch message: {message.topic} {str(message.payload)}')
 
 if __name__ == '__main__':
