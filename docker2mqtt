@@ -56,7 +56,7 @@ def mqtt_disconnect():
 def mqtt_send(send_topic, payload, retain=False):
     try:
         if DEBUG:
-            print(f'Sending to MQTT: {topic}: {payload}')
+            print(f'Sending to MQTT: {send_topic}: {payload}')
         mqtt.publish(send_topic, payload=payload, qos=MQTT_QOS, retain=retain)
 
     except Exception as e:
@@ -85,8 +85,9 @@ def register_container(container_entry):
         'device_class': 'connectivity',
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status'
     }
+    mqtt_send_topic_status = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status'
     mqtt_send(registration_topic_status, json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status', json.dumps(container_entry), retain=True)
+    mqtt_send(mqtt_send_topic_status, json.dumps(container_entry), retain=True)
 
     # Discover switch
     known_containers[container_entry['name']] = container_entry
@@ -107,9 +108,11 @@ def register_container(container_entry):
         'state_off': 'off',
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
     }
+    mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
+    mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set'
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch', json.dumps(container_entry), retain=True)
-    mqtt_receive(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set')
+    mqtt_send(mqtt_send_topic_switch, json.dumps(container_entry), retain=True)
+    mqtt_receive(mqtt_receive_topic_switch)
 
     # Discover 'started' sensor
     known_containers[container_entry['name']] = container_entry
@@ -128,8 +131,9 @@ def register_container(container_entry):
         'device_class': 'timestamp',
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started'
     }
+    mqtt_send_topic_started = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started'
     mqtt_send(registration_topic_started, json.dumps(registration_packet_started, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started', json.dumps(container_entry), retain=True)
+    mqtt_send(mqtt_send_topic_started, json.dumps(container_entry), retain=True)
 
     # Discover 'created' sensor
     known_containers[container_entry['name']] = container_entry
@@ -148,8 +152,9 @@ def register_container(container_entry):
         'device_class': 'timestamp',
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created'
     }
+    mqtt_send_topic_created = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created'
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created', json.dumps(container_entry), retain=True)
+    mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
 
 
 def readline_thread():
