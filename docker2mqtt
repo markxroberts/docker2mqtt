@@ -313,11 +313,13 @@ if __name__ == '__main__':
             if old_name.startswith('/'):
                 old_name = old_name[1:]
             print(f'Container {old_name} renamed to {container}.')
-            mqtt_send(f'{HOMEASSISTANT_PREFIX}/binary_sensor/{MQTT_TOPIC_PREFIX}/{old_name}_status/config', '', retain=True)
+            mqtt_send(f'{HOMEASSISTANT_PREFIX}/binary_sensor/{old_name}_status/config', '', retain=True)
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
-            mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{old_name}_started/config', '', retain=True)
+            mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_started/config', '', retain=True)
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
-            mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{old_name}_created/config', '', retain=True)
+            mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_created/config', '', retain=True)
+            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+            mqtt_send(f'{HOMEASSISTANT_PREFIX}/switch/{old_name}_switch/config', '', retain=True)
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
 
             register_container({
