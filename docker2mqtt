@@ -161,14 +161,15 @@ def readline_thread():
 
 def mqtt_listener():
     print('Listener started')
-    mqtt.loop_start()
     mqtt.on_message = on_message
+    mqtt.loop_start()
     print('Message received')
 
 def on_message(client, userdata, message):
     print(f'Message received')
     print(f'Whole message: {message}')
     print(f'Switch message: {message.topic} {str(message.payload)}')
+    mqtt_events.put(on_message)
 
 if __name__ == '__main__':
     # Setup MQTT
@@ -224,6 +225,7 @@ if __name__ == '__main__':
             'ip': ipaddress
         })
     # Start MQTT listener
+    mqtt_events = queue.Queue()
     mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
     mqtt_events_t.start()
     # Start the docker events thread
