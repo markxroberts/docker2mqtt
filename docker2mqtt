@@ -52,7 +52,6 @@ def mqtt_disconnect():
     sleep(1)
     mqtt.loop_stop()
 
-
 def mqtt_send(send_topic, payload, retain=False):
     try:
         if DEBUG:
@@ -164,17 +163,10 @@ def readline_thread():
         while True:
             docker_events.put(proc.stdout.readline())
 
-def mqtt_listener():
-    print('Listener started')
-    mqtt.on_message = on_message
-    mqtt.loop_start()
-    print('Message received')
-
 def on_message(client, userdata, message):
     print(f'Message received')
     print(f'Whole message: {message}')
     print(f'Switch message: {message.topic} {str(message.payload)}')
-    mqtt_events.put(on_message)
 
 if __name__ == '__main__':
     # Setup MQTT
@@ -183,6 +175,8 @@ if __name__ == '__main__':
     mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt.loop_start()
+    mqtt.on_message = on_message
+
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
 
     # Register containers with HA
@@ -229,10 +223,7 @@ if __name__ == '__main__':
             'started': started,
             'ip': ipaddress
         })
-    # Start MQTT listener
-    mqtt_events = queue.Queue()
-    mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
-    mqtt_events_t.start()
+
     # Start the docker events thread
     docker_events = queue.Queue()
     docker_events_t = Thread(target=readline_thread, daemon=True)
