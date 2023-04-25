@@ -160,8 +160,10 @@ def readline_thread():
             docker_events.put(proc.stdout.readline())
 
 def mqtt_listener():
+    print('Listener started')
     mqtt.loop_start()
     mqtt.on_message = on_message
+    print('Message received')
 
 def on_message(client, userdata, message):
     print(f'Message received')
@@ -221,14 +223,14 @@ if __name__ == '__main__':
             'started': started,
             'ip': ipaddress
         })
-
+    # Start MQTT listener
+    mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
+    mqtt_events_t.start()
     # Start the docker events thread
     docker_events = queue.Queue()
     docker_events_t = Thread(target=readline_thread, daemon=True)
     docker_events_t.start()
-    mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
-    mqtt_events_t.start()
-
+    
     # Loop and wait for new events
     while True:
         # Remove any destroyed containers that have passed the TTL
