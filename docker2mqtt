@@ -109,7 +109,7 @@ def register_container(container_entry):
     }
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch', json.dumps(container_entry), retain=True)
-    mqtt_receive(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_set')
+    mqtt_receive(f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch_set')
 
     # Discover 'started' sensor
     known_containers[container_entry['name']] = container_entry
@@ -160,8 +160,7 @@ def readline_thread():
             docker_events.put(proc.stdout.readline())
 
 def on_message(client, userdata, message):
-    decoded_message=str(message.payload.decode("utf-8"))
-    print(f'Switch message: {decoded_message}')
+    print(f'Switch message: {message.topic} {str(message.payload)}')
 
 if __name__ == '__main__':
     # Setup MQTT
@@ -171,7 +170,7 @@ if __name__ == '__main__':
     mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt.loop_start()
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
-    mqtt.on_message = on_message
+    mqtt.on_message = on_message()
 
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
