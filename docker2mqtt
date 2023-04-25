@@ -62,7 +62,8 @@ def mqtt_send(send_topic, payload, retain=False):
         print(f'MQTT Publish Failed: {e}')
 
 def mqtt_receive(receive_topic):
-    mqtt.subscribe(receive_topic, qos=MQTT_QOS)    
+    mqtt.subscribe(receive_topic, qos=MQTT_QOS)
+    print (f'MQTT topic subscribed: {receive_topic}')
 
 def register_container(container_entry):
     """
@@ -109,6 +110,7 @@ def register_container(container_entry):
     }
     mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
     mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set'
+    print(f'{mqtt_receive_topic_switch}')
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_switch, json.dumps(container_entry), retain=True)
     mqtt_receive(mqtt_receive_topic_switch)
@@ -163,7 +165,7 @@ def readline_thread():
         while True:
             docker_events.put(proc.stdout.readline())
 
-def on_message(client, userdata, message):
+def message_received(client, userdata, message):
     print(f'Message received')
     print(f'Whole message: {message}')
     print(f'Switch message: {message.topic} {str(message.payload)}')
@@ -175,7 +177,8 @@ if __name__ == '__main__':
     mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt.loop_start()
-    mqtt.on_message = on_message
+    mqtt.on_message = message_received
+    print(f'{message_received}')
 
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
 
