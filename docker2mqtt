@@ -63,11 +63,11 @@ def mqtt_send(send_topic, payload, retain=False):
 def mqtt_receive(receive_topic):
     try:
         if DEBUG:
-            print(f'Sending to MQTT: {receive_topic}')
+            print(f'Subscribing to MQTT: {receive_topic}')
         mqtt.subscribe(receive_topic, qos=MQTT_QOS)
         print (f'MQTT topic subscribed: {receive_topic}')
     except Exception as e:
-        print(f'MQTT Suscribe Failed: {e}')
+        print(f'MQTT Subscribe Failed: {e}')
 
 def register_container(container_entry):
     """
@@ -182,7 +182,6 @@ if __name__ == '__main__':
     mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt.loop_start()
     mqtt.on_message = message_received
-    print(f'{message_received}')
 
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
 
