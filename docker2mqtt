@@ -53,17 +53,17 @@ def mqtt_disconnect():
     mqtt.loop_stop()
 
 
-def mqtt_send(topic, payload, retain=False):
+def mqtt_send(send_topic, payload, retain=False):
     try:
         if DEBUG:
             print(f'Sending to MQTT: {topic}: {payload}')
-        mqtt.publish(topic, payload=payload, qos=MQTT_QOS, retain=retain)
+        mqtt.publish(send_topic, payload=payload, qos=MQTT_QOS, retain=retain)
 
     except Exception as e:
         print(f'MQTT Publish Failed: {e}')
 
-def mqtt_receive(topic):
-    mqtt.subscribe(topic, qos=MQTT_QOS)    
+def mqtt_receive(receive_topic):
+    mqtt.subscribe(receive_topic, qos=MQTT_QOS)    
 
 def register_container(container_entry):
     """
