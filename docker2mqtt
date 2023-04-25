@@ -161,7 +161,7 @@ def readline_thread():
 
 def on_message(client, userdata, message):
     decoded_message=str(message.payload.decode("utf-8"))
-    print(decoded_message)
+    print(f'Switch message: {decoded_message}')
 
 if __name__ == '__main__':
     # Setup MQTT
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt.loop_start()
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
-    mqtt.on_message=on_message
+    mqtt.on_message = on_message
 
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
