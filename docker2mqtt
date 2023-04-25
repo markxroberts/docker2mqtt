@@ -57,13 +57,17 @@ def mqtt_send(send_topic, payload, retain=False):
         if DEBUG:
             print(f'Sending to MQTT: {send_topic}: {payload}')
         mqtt.publish(send_topic, payload=payload, qos=MQTT_QOS, retain=retain)
-
     except Exception as e:
         print(f'MQTT Publish Failed: {e}')
 
 def mqtt_receive(receive_topic):
-    mqtt.subscribe(receive_topic, qos=MQTT_QOS)
-    print (f'MQTT topic subscribed: {receive_topic}')
+    try:
+        if DEBUG:
+            print(f'Sending to MQTT: {receive_topic}')
+        mqtt.subscribe(receive_topic, qos=MQTT_QOS)
+        print (f'MQTT topic subscribed: {receive_topic}')
+    except Exception as e:
+        print(f'MQTT Suscribe Failed: {e}')
 
 def register_container(container_entry):
     """
@@ -110,7 +114,7 @@ def register_container(container_entry):
     }
     mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
     mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set'
-    print(f'{mqtt_receive_topic_switch}')
+    print(f'Receive topic defined: {mqtt_receive_topic_switch}')
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_switch, json.dumps(container_entry), retain=True)
     mqtt_receive(mqtt_receive_topic_switch)
