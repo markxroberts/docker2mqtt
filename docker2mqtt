@@ -183,6 +183,9 @@ def message_received(client, userdata, message):
     print(f'Whole message: {message}')
     print(f'Switch message: {message.topic} {str(message.payload)}')
 
+def on_log(client, userdata, level, string):
+    print(string)
+
 if __name__ == '__main__':
     # Setup MQTT
     mqtt = paho.mqtt.client.Client()
@@ -190,6 +193,7 @@ if __name__ == '__main__':
     mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     mqtt.on_message = message_received
     mqtt.on_unsubscribe = on_subscribe
+    mqtt.on_log = on_log
     mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
 
