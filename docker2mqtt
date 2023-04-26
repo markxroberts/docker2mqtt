@@ -191,7 +191,6 @@ if __name__ == '__main__':
     mqtt.on_message = message_received
     mqtt.on_unsubscribe = on_subscribe
     mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
-    mqtt.loop_start()
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
 
     # Start MQTT events threa
@@ -250,6 +249,7 @@ if __name__ == '__main__':
     
     # Loop and wait for new events
     while True:
+        mqtt.loop_start()
         # Remove any destroyed containers that have passed the TTL
         for container, destroyed_at in pending_destroy_operations.copy().items():
             if time() - destroyed_at > DESTROYED_CONTAINER_TTL:
@@ -381,3 +381,4 @@ if __name__ == '__main__':
 
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
+        mqtt.loop_stop()
