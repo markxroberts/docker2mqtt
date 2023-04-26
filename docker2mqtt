@@ -172,6 +172,12 @@ def readline_thread():
         while True:
             docker_events.put(proc.stdout.readline())
 
+def mqtt_listener():
+    print('Listener started')
+    mqtt.on_message = message_received
+    mqtt.loop_start()
+    print('Message received')
+
 def message_received(client, userdata, message):
     print(f'Message received')
     print(f'Whole message: {message}')
@@ -187,6 +193,10 @@ if __name__ == '__main__':
     mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt.loop_start()
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
+
+    # Start MQTT events threa
+    mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
+    mqtt_events_t.start()
 
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
