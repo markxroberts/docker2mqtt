@@ -34,6 +34,7 @@ DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
 
+docker_events = {}
 known_containers = {}
 pending_destroy_operations = {}
 docker_events_cmd = ['docker', 'events', '-f', 'type=container', '--format', '{{json .}}']
@@ -164,7 +165,6 @@ def register_container(container_entry):
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
 
-
 def readline_thread():
     """Run docker events and continually read lines from it.
     """
@@ -186,21 +186,7 @@ def message_received(client, userdata, message):
 def on_log(client, userdata, level, string):
     print(string)
 
-if __name__ == '__main__':
-    # Setup MQTT
-    mqtt = paho.mqtt.client.Client()
-    mqtt.username_pw_set(username=MQTT_USER,password=MQTT_PASSWD)
-    mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
-    mqtt.on_message = message_received
-    mqtt.on_unsubscribe = on_subscribe
-    mqtt.on_log = on_log
-    mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
-
-    # Start MQTT events threa
-    mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
-    mqtt_events_t.start()
-
+def on_connect():
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
@@ -385,4 +371,20 @@ if __name__ == '__main__':
 
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
-        mqtt.loop_stop()
+
+
+if __name__ == '__main__':
+    # Setup MQTT
+    mqtt = paho.mqtt.client.Client()
+    mqtt.username_pw_set(username=MQTT_USER,password=MQTT_PASSWD)
+    mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
+    mqtt.on_message = message_received
+    mqtt.on_unsubscribe = on_subscribe
+    mqtt.on_log = on_log
+    mqtt.on_connect = on_connect
+    mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
+    mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
+
+    # Start MQTT events thread
+    mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
+    mqtt_events_t.start()
