@@ -43,6 +43,8 @@ docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 docker_start_cmd = ['docker', 'start']
 docker_stop_cmd = ['docker', 'stop']
+mqtt = paho.mqtt.client.Client()
+mqtt_connected = False
 
 @atexit.register
 def mqtt_disconnect():
@@ -50,8 +52,19 @@ def mqtt_disconnect():
     """
     mqtt.publish(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     mqtt.disconnect()
+    print('MQTT client disconnected')
     sleep(1)
     mqtt.loop_stop()
+
+def mqtt_connect():
+    mqtt.username_pw_set(username=MQTT_USER,password=MQTT_PASSWD)
+    mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
+    mqtt.on_message = message_received
+    mqtt.on_unsubscribe = on_subscribe
+    mqtt.on_log = on_log
+    mqtt.on_connect = on_connect
+    mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
+    mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
 
 def mqtt_send(send_topic, payload, retain=False):
     try:
@@ -186,7 +199,14 @@ def message_received(client, userdata, message):
 def on_log(client, userdata, level, string):
     print(string)
 
-def on_connect():
+def on_connect(client, userdata, flags, rc):
+    if rc == 1:
+        print('Connection established to broker')
+        mqtt_connected = True
+    else:
+        mqtt_connected = False
+
+def run_docker_ps():
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
@@ -374,17 +394,10 @@ def on_connect():
 
 
 if __name__ == '__main__':
-    # Setup MQTT
-    mqtt = paho.mqtt.client.Client()
-    mqtt.username_pw_set(username=MQTT_USER,password=MQTT_PASSWD)
-    mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
-    mqtt.on_message = message_received
-    mqtt.on_unsubscribe = on_subscribe
-    mqtt.on_log = on_log
-    mqtt.on_connect = on_connect
-    mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
-
+    mqtt_connect()
+    if mqtt_connected == True:
+        mqtt_listener()
+        run_docker_ps()
     # Start MQTT events thread
-    mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
-    mqtt_events_t.start()
+    # mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
+    # mqtt_events_t.start()
