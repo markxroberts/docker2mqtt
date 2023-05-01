@@ -215,6 +215,7 @@ def message_received(client, userdata, message):
         ha_online = False
     else:
         switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
+        print(switch_message)
         container_name = switch_message.group(1)
         if str(message.payload) == 'on':
             print(f'Switch on received on {message.topic}, {container_name}')
