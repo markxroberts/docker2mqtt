@@ -43,7 +43,7 @@ docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 docker_start_cmd = ['docker', 'start']
 docker_stop_cmd = ['docker', 'stop']
-mqtt_connected = False
+mqtt_connected = True
 client = mqtt.Client(f'{MQTT_CLIENT_ID}')
 
 @atexit.register
@@ -65,7 +65,8 @@ def mqtt_connect():
     client.on_connect = on_connect
     client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
-    mqtt_connected = True
+    if mqtt_connected = False:
+        mqtt_connected = True
     print('MQTT connection established')
 
 def mqtt_send(send_topic, payload, retain=False):
