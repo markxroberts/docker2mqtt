@@ -65,6 +65,8 @@ def mqtt_connect():
     client.on_connect = on_connect
     client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
+    sleep(4)
+    mqtt_connected = True
 
 def mqtt_send(send_topic, payload, retain=False):
     try:
@@ -262,7 +264,7 @@ def run_docker_ps():
     # Loop and wait for new events
     while True:
         client.loop_start()
-        time.sleep(4)
+        sleep(4)
         # Remove any destroyed containers that have passed the TTL
         for container, destroyed_at in pending_destroy_operations.copy().items():
             if time() - destroyed_at > DESTROYED_CONTAINER_TTL:
@@ -398,9 +400,13 @@ def run_docker_ps():
 
 if __name__ == '__main__':
     mqtt_connect()
+    sleep(4)
     if mqtt_connected == True:
+        print('Subscribing to listener and obtaining docker information')
         mqtt_listener()
         run_docker_ps()
+    else:
+        print('MQTT and docker not connected')
     # Start MQTT events thread
     # mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
     # mqtt_events_t.start()
