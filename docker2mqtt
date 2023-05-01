@@ -33,6 +33,7 @@ DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
+SWITCH_TOPIC_REGEX = '^.*\/(.*)\/_switch\/status$'
 
 docker_events = {}
 known_containers = {}
@@ -198,9 +199,22 @@ def mqtt_listener():
     sleep(4)
 
 def message_received(client, userdata, message):
+    global ha_online
     print(f'Message received')
     print(f'Whole message: {message}')
     print(f'Switch message: {message.topic} {str(message.payload)}')
+    if "homeassistant/status" in message.topic and "online" in str(message.payload):
+        ha_online = True
+        run_docker_ps()
+    elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
+        ha_online = False
+    else:
+        switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
+        container_name = switch_message.group(1)
+        if str(message.payload) == 'on':
+            print(f'Switch on received on {message.topic}, {container_name}')
+        elif str(message.payload) == 'off':
+            print(f'Switch off received on {message.topic}, {container_name}')
 
 def on_log(client, userdata, level, string):
     print(string)
