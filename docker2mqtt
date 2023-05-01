@@ -193,7 +193,7 @@ def mqtt_listener():
     print('Listener started')
     client.on_message = message_received
     client.loop_start()
-    time.sleep(4)
+    sleep(4)
     print('Message received')
 
 def message_received(client, userdata, message):
