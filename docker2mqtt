@@ -65,7 +65,7 @@ def mqtt_connect():
     client.on_connect = on_connect
     client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
-    if mqtt_connected = False:
+    if mqtt_connected == False:
         mqtt_connected = True
     print('MQTT connection established')
 
