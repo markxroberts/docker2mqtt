@@ -46,6 +46,7 @@ docker_start_cmd = ['docker', 'start']
 docker_stop_cmd = ['docker', 'stop']
 mqtt_connected = True
 ha_online = True
+initialized = False
 client = mqtt.Client(f'{MQTT_CLIENT_ID}')
 
 @atexit.register
@@ -96,6 +97,7 @@ def on_subscribe(mosq, obj, mid, granted_qos):
 def register_container(container_entry):
     """
     """
+    global initialized
     # Discover binary_sensor
     known_containers[container_entry['name']] = container_entry
     registration_topic_status = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
@@ -185,6 +187,8 @@ def register_container(container_entry):
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
 
+    initalized = True
+
 def readline_thread():
     """Run docker events and continually read lines from it.
     """
@@ -205,7 +209,8 @@ def message_received(client, userdata, message):
     print(f'Switch message: {message.topic} {str(message.payload)}')
     if "homeassistant/status" in message.topic and "online" in str(message.payload):
         ha_online = True
-        run_docker_ps()
+        if initialized == True:
+            run_docker_ps()
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
     else:
