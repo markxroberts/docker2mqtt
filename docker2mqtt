@@ -12,7 +12,7 @@ from subprocess import run, Popen, PIPE
 from threading import Thread
 from time import sleep, time
 
-import paho.mqtt.client
+import paho.mqtt.client as mqtt
 
 DEBUG = environ.get('DEBUG', '1') == '1'
 DESTROYED_CONTAINER_TTL = int(environ.get('DESTROYED_CONTAINER_TTL', 24*60*60))
@@ -43,27 +43,27 @@ docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 docker_start_cmd = ['docker', 'start']
 docker_stop_cmd = ['docker', 'stop']
-mqtt = paho.mqtt.client.Client()
 mqtt_connected = False
+client = mqtt.Client(f'{MQTT_CLIENT_ID}')
 
 @atexit.register
 def mqtt_disconnect():
     """Called by atexit to make sure we send our last_will message.
     """
     mqtt.publish(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
-    mqtt.disconnect()
+    client.disconnect()
     print('MQTT client disconnected')
     sleep(1)
-    mqtt.loop_stop()
+    client.loop_stop()
 
 def mqtt_connect():
     mqtt.username_pw_set(username=MQTT_USER,password=MQTT_PASSWD)
     mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
-    mqtt.on_message = message_received
-    mqtt.on_unsubscribe = on_subscribe
-    mqtt.on_log = on_log
-    mqtt.on_connect = on_connect
-    mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
+    client.on_message = message_received
+    client.on_unsubscribe = on_subscribe
+    client.on_log = on_log
+    client.on_connect = on_connect
+    client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
 
 def mqtt_send(send_topic, payload, retain=False):
@@ -187,8 +187,9 @@ def readline_thread():
 
 def mqtt_listener():
     print('Listener started')
-    mqtt.on_message = message_received
-    mqtt.loop_start()
+    client.on_message = message_received
+    client.loop_start()
+    time.sleep(4)
     print('Message received')
 
 def message_received(client, userdata, message):
@@ -200,10 +201,11 @@ def on_log(client, userdata, level, string):
     print(string)
 
 def on_connect(client, userdata, flags, rc):
-    if rc == 1:
+    if rc == 0:
         print('Connection established to broker')
         mqtt_connected = True
     else:
+        print('No connection established to broker')
         mqtt_connected = False
 
 def run_docker_ps():
@@ -259,7 +261,8 @@ def run_docker_ps():
     
     # Loop and wait for new events
     while True:
-        mqtt.loop_start()
+        client.loop_start()
+        time.sleep(4)
         # Remove any destroyed containers that have passed the TTL
         for container, destroyed_at in pending_destroy_operations.copy().items():
             if time() - destroyed_at > DESTROYED_CONTAINER_TTL:
