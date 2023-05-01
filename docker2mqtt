@@ -50,15 +50,15 @@ client = mqtt.Client(f'{MQTT_CLIENT_ID}')
 def mqtt_disconnect():
     """Called by atexit to make sure we send our last_will message.
     """
-    mqtt.Client.publish(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
+    client.publish(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     client.disconnect()
     print('MQTT client disconnected')
     sleep(1)
     client.loop_stop()
 
 def mqtt_connect():
-    mqtt.Client.username_pw_set(username=MQTT_USER,password=MQTT_PASSWD)
-    mqtt.Client.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
+    client.username_pw_set(username=MQTT_USER, password=MQTT_PASSWD)
+    client.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     client.on_message = message_received
     client.on_unsubscribe = on_subscribe
     client.on_log = on_log
@@ -70,7 +70,7 @@ def mqtt_send(send_topic, payload, retain=False):
     try:
         if DEBUG:
             print(f'Sending to MQTT: {send_topic}: {payload}')
-        mqtt.Client.publish(send_topic, payload=payload, qos=MQTT_QOS, retain=retain)
+        client.publish(send_topic, payload=payload, qos=MQTT_QOS, retain=retain)
     except Exception as e:
         print(f'MQTT Publish Failed: {e}')
 
@@ -78,7 +78,7 @@ def mqtt_receive(receive_topic):
     try:
         if DEBUG:
             print(f'Subscribing to MQTT: {receive_topic}')
-        mqtt.Client.subscribe(receive_topic)
+        client.subscribe(receive_topic)
         print (f'MQTT topic subscribed: {receive_topic}')
     except Exception as e:
         print(f'MQTT Subscribe Failed: {e}')
