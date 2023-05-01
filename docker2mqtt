@@ -84,7 +84,7 @@ def mqtt_receive(receive_topic):
     try:
         if DEBUG:
             print(f'Subscribing to MQTT: {receive_topic}')
-        client.subscribe(receive_topic, qos=MQTT_QOS)
+        client.subscribe(receive_topic)
         print (f'MQTT topic subscribed: {receive_topic}')
     except Exception as e:
         print(f'MQTT Subscribe Failed: {e}')
@@ -136,11 +136,11 @@ def register_container(container_entry):
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
     }
     mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
-    mqtt_receive_topic_switch = f"{MQTT_TOPIC_PREFIX}/{container_entry['name']}_switch/set"
+    mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set'
     print(f'Receive topic defined: {mqtt_receive_topic_switch}')
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_switch, json.dumps(container_entry), retain=True)
-    mqtt_receive(mqtt_receive_topic_switch)
+    mqtt_receive((mqtt_receive_topic_switch, MQTT_QOS))
 
     # Discover 'started' sensor
     known_containers[container_entry['name']] = container_entry
