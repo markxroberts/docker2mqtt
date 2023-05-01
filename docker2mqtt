@@ -136,7 +136,7 @@ def register_container(container_entry):
         'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
     }
     mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
-    mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set'
+    mqtt_receive_topic_switch = f"{MQTT_TOPIC_PREFIX}/{container_entry['name']}_switch/set"
     print(f'Receive topic defined: {mqtt_receive_topic_switch}')
     mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_switch, json.dumps(container_entry), retain=True)
