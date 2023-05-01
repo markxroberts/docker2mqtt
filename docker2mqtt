@@ -200,8 +200,9 @@ def mqtt_listener():
 
 def message_received(client, userdata, message):
     print(f'Message received')
-    print(f'Whole message: {message}')
-    print(f'Switch message: {message.topic} {str(message.payload)}')
+    message_text=message.decode("utf-8")
+    print(f'Whole message: {message_text}')
+    print(f'Switch message: {message_text.topic} {str(message_text.payload)}')
 
 def on_log(client, userdata, level, string):
     print(string)
