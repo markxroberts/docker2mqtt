@@ -82,7 +82,7 @@ def mqtt_receive(receive_topic):
     try:
         if DEBUG:
             print(f'Subscribing to MQTT: {receive_topic}')
-        client.subscribe(receive_topic)
+        client.subscribe(receive_topic, qos=MQTT_QOS)
         print (f'MQTT topic subscribed: {receive_topic}')
     except Exception as e:
         print(f'MQTT Subscribe Failed: {e}')
