@@ -67,7 +67,7 @@ def mqtt_connect():
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
     if mqtt_connected == False:
         mqtt_connected = True
-    print('MQTT connection established')
+    print('MQTT connection initiated')
 
 def mqtt_send(send_topic, payload, retain=False):
     try:
