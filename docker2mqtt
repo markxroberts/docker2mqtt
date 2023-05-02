@@ -33,7 +33,7 @@ DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
-SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
+SWITCH_TOPIC_REGEX = r'^w*\/(w*)\_switch\/set$'
 
 docker_events = {}
 known_containers = {}
@@ -41,6 +41,8 @@ pending_destroy_operations = {}
 docker_events_cmd = ['docker', 'events', '-f', 'type=container', '--format', '{{json .}}']
 docker_ps_cmd = ['docker', 'ps', '-a', '--format', '{{json .}}']
 docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
+docker_start_cmd = ['docker', 'start']
+docker_stop_cmd = ['docker', 'stop']
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 docker_start_cmd = ['docker', 'start']
 docker_stop_cmd = ['docker', 'stop']
@@ -218,10 +220,18 @@ def message_received(client, userdata, message):
         print(switch_message)
         container_name = switch_message.group(1)
         print(container_name)
-        if str(message.payload) == 'on':
+        if 'on' in str(message.payload):
             print(f'Switch on received on {message.topic}, {container_name}')
-        elif str(message.payload) == 'off':
+            docker_start_cmd.append(container_name)
+            run(docker_start_cmd)
+            docker_start_cmd.remove(container_name)
+            print(f'Start command sent to docker for {container_name}')
+        elif 'off' in str(message.payload):
             print(f'Switch off received on {message.topic}, {container_name}')
+            docker_stop_cmd.append(container_name)
+            run(docker_start_cmd)
+            docker_stop_cmd.remove(container_name)
+            print(f'Stop command sent to docker for {container_name}')
 
 def on_log(client, userdata, level, string):
     print(string)
