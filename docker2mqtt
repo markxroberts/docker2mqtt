@@ -216,8 +216,9 @@ def message_received(client, userdata, message):
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
     else:
+        print(f'{message.topic}')
         switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
-        print(switch_message)
+        print(f'{switch_message}')
         container_name = switch_message.group(1)
         print(container_name)
         if 'on' in str(message.payload):
@@ -229,7 +230,7 @@ def message_received(client, userdata, message):
         elif 'off' in str(message.payload):
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
-            run(docker_start_cmd)
+            run(docker_stop_cmd)
             docker_stop_cmd.remove(container_name)
             print(f'Stop command sent to docker for {container_name}')
 
