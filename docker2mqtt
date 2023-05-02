@@ -33,7 +33,7 @@ DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
-SWITCH_TOPIC_REGEX = '^.*\/(.*)\_switch\/set$'
+SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
 
 docker_events = {}
 known_containers = {}
@@ -214,7 +214,7 @@ def message_received(client, userdata, message):
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
     else:
-        switch_message = re.search(r'SWITCH_TOPIC_REGEX', message.topic)
+        switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
         print(switch_message)
         container_name = switch_message.group(1)
         print(container_name)
