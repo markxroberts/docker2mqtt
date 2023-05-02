@@ -33,7 +33,7 @@ DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
-SWITCH_TOPIC_REGEX = r'^w*\/(w*)\_switch\/set$'
+SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
 
 docker_events = {}
 known_containers = {}
