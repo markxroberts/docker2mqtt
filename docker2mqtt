@@ -214,9 +214,10 @@ def message_received(client, userdata, message):
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
     else:
-        switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
+        switch_message = re.search(r'SWITCH_TOPIC_REGEX', message.topic)
         print(switch_message)
         container_name = switch_message.group(1)
+        print(container_name)
         if str(message.payload) == 'on':
             print(f'Switch on received on {message.topic}, {container_name}')
         elif str(message.payload) == 'off':
