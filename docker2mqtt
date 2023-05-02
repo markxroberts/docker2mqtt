@@ -224,13 +224,13 @@ def message_received(client, userdata, message):
         if 'on' in str(message.payload):
             print(f'Switch on received on {message.topic}, {container_name}')
             docker_start_cmd.append(container_name)
-            run(docker_start_cmd)
+            run(docker_start_cmd, stdout=PIPE, text=True)
             docker_start_cmd.remove(container_name)
             print(f'Start command sent to docker for {container_name}')
         elif 'off' in str(message.payload):
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
-            run(docker_stop_cmd)
+            run(docker_stop_cmd, stdout=PIPE, text=True)
             docker_stop_cmd.remove(container_name)
             print(f'Stop command sent to docker for {container_name}')
 
