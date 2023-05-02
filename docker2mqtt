@@ -33,7 +33,8 @@ DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
-SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
+SWITCH_TOPIC_REGEX = r'^\w*\/(\w*)\_switch\/set$'
+JSON_ONLY_REGEX = r'^(\{.*\})\w*$'
 
 docker_events = {}
 known_containers = {}
@@ -197,7 +198,11 @@ def readline_thread():
             try:
                 docker_events.put(proc.stdout.readline())
             except AttributeError:
-                pass
+                remove_non_json = re.search(JSON_ONLY_REGEX, proc.stdout.readline())
+                print(f'{remove_non_json}')
+                remaining_json = remove_non_json.group(1)
+                print(f'{remaining_json}')
+                docker_events.put(remaining_json)
 
 def mqtt_listener():
     print('Listener started')
