@@ -1,6 +1,6 @@
 # docker2mqtt - Deliver docker status information over MQTT and enables basic control of containers.
 
-This program uses `docker events` to watch for changes in your docker containers, and delivers current status to MQTT. It will also publish Home Assistant MQTT Discovery messages so that sensors and switches automatically show up in Home Assistant.  Switch events are publsihed via `docker start` and `docker stop`.
+This program uses `docker events` to watch for changes in your docker containers, and delivers current status to MQTT. It will also publish Home Assistant MQTT Discovery messages so that sensors and switches automatically show up in Home Assistant.  Switch events are published via `docker start` and `docker stop`.
 
 It is based entirely on skullydazed/docker2mqtt who wrote the original code.  I have adapted for my purposes.
 
@@ -66,7 +66,7 @@ You can use environment variables to control the behaviour.
   switch.HOMEASSISTANT_NAME_PREFIX_<container>_switch
 ```
 
-Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,started,created]` using JSON serialization. It will arrive whenever a change happens and takes the following form:
+Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,started,created]` using JSON serialization. It will be published whenever a change happens and takes the following form:
 
 ```yaml
 {
@@ -79,12 +79,12 @@ Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,started
     'ip': <Container IP address>
 }
 ```
-The switch topic monitored is:
+The switch topic monitored by the application is:
 ```
   <MQTT_TOPIC_PREFIX>/<container>_switch/set
 ```
 
 # Home Assistant
 
-After you start the service sensors should show up in Home Assistant with a couple of minutes. Metadata about the container will be available as attributes, which you can then expose using template sensors.  Beware of using the switches for Home Assistant and docker2mqtt.  You will be able to turn them off, but won't be able to turn them back on!
+After you start the service, sensor and switches should show up in Home Assistant with a couple of minutes. Metadata about the container will be available as attributes in the sensors, which you can then expose using template sensors.  Beware of using the switches for Home Assistant and docker2mqtt.  You will be able to turn them off, but won't be able to turn them back on!
 
