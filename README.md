@@ -1,12 +1,14 @@
-# docker2mqtt - Deliver docker status information over MQTT.
+# docker2mqtt - Deliver docker status information over MQTT and enables basic control of containers.
 
-This program uses `docker events` to watch for changes in your docker containers, and delivers current status to MQTT. It will also publish Home Assistant MQTT Discovery messages so that binary sensors automatically show up in Home Assistant.
+This program uses `docker events` to watch for changes in your docker containers, and delivers current status to MQTT. It will also publish Home Assistant MQTT Discovery messages so that sensors and switches automatically show up in Home Assistant.  Switch events are publsihed via `docker start` and `docker stop`.
+
+It is based entirely on skullydazed/docker2mqtt who wrote the original code.  I have adapted for my purposes.
 
 # Running
 
 Use docker to launch this. Please note that you must give it access to your docker socket, which is typically located at `/var/run/docker.sock`. A typical invocation is:
 
-    docker run --network mqtt -e MQTT_HOST=mosquitto -v /var/run/docker.sock:/var/run/docker.sock skullydazed/docker2mqtt
+    docker run --network mqtt -e MQTT_HOST=mosquitto -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/markxroberts/docker2mqtt
 
 You can also use docker compose:
 ```yaml
@@ -14,11 +16,12 @@ version: '3'
 services:
   docker2mqtt:
     container_name: docker2mqtt
-    image: skullydazed/docker2mqtt
+    image: ghcr.io/markxroberts/docker2mqtt
     environment:
     - DESTROYED_CONTAINER_TTL=86400
     - DOCKER2MQTT_HOSTNAME=my_docker_host
     - HOMEASSISTANT_PREFIX=homeassistant
+    - HOMEASSISTANT_NAME_PREFIX=docker
     - MQTT_CLIENT_ID=docker2mqtt
     - MQTT_HOST=mosquitto
     - MQTT_PORT=1883
@@ -29,14 +32,12 @@ services:
     - MQTT_QOS=1
     restart: always
     volumes:
-    - type: volume
-      source: /var/run/docker.sock
-      target: /var/run/docker.sock
+    - /var/run/docker.sock:/var/run/docker.sock
 ```
 
 # Configuration
 
-You can use environment variables to control the behavior.
+You can use environment variables to control the behaviour.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -44,6 +45,7 @@ You can use environment variables to control the behavior.
 | `DESTROYED_CONTAINER_TTL` | 86400 | How long, in seconds, before destroyed containers are removed from Home Assistant. Containers won't be removed if the service is restarted before the TTL expires. |
 | `DOCKER2MQTT_HOSTNAME` | Container Hostname | The hostname of your docker host. This will be the container's hostname by default, you probably want to override it. |
 | `HOMEASSISTANT_PREFIX` | `homeassistant` | The prefix for Home Assistant discovery. Must be the same as `discovery_prefix` in your Home Assistant configuration. |
+| `HOMEASSISTANT_NAME_PREFIX` | `docker` | The friendly name and entity_id prefix for Home Assistant |
 | `MQTT_CLIENT_ID` | `mqtt2discord` | The client id to send to the MQTT broker. |
 | `MQTT_HOST` | `localhost` | The MQTT broker to connect to. |
 | `MQTT_PORT` | `1883` | The port on the broker to connect to. |
@@ -55,19 +57,34 @@ You can use environment variables to control the behavior.
 
 # Consuming The Data
 
-Data is published to the topic `docker/<DOCKER2MQTT_HOSTNAME>/<container>` using JSON serialization. It will arrive whenever a change happens and takes the following form:
+3 sensors and 1 switch are currently created:
+
+```
+  binary_sensor.HOMEASSISTANT_NAME_PREFIX_<container>_state
+  sensor.HOMEASSISTANT_NAME_PREFIX_<container>_started
+  sensor.HOMEASSISTANT_NAME_PREFIX_<container>_created
+  switch.HOMEASSISTANT_NAME_PREFIX_<container>_switch
+```
+
+Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,started,created]` using JSON serialization. It will arrive whenever a change happens and takes the following form:
 
 ```yaml
 {
     'name': <Container Name>,
     'image': <Container Image>,
     'status': <'paused', 'running', or 'stopped'>,
-    'state': <'on' or 'off'>
+    'state': <'on' or 'off'>,
+    'started': <Container started date>,
+    'created': <Container created date>,
+    'ip': <Container IP address>
 }
+```
+The switch topic monitored is:
+```
+  <MQTT_TOPIC_PREFIX>/<container>_switch/set
 ```
 
 # Home Assistant
 
-After you start the service binary sensors should show up in Home Assistant immediately. Look for sensors that start with `binary_sensor.docker`. Metadata about the container will be available as attributes, which you can then expose using template sensors if you wish. 
+After you start the service sensors should show up in Home Assistant with a couple of minutes. Metadata about the container will be available as attributes, which you can then expose using template sensors.  Beware of using the switches for Home Assistant and docker2mqtt.  You will be able to turn them off, but won't be able to turn them back on!
 
-![Screenshot of Home Assistant sensor showing status and attributes.](ha_screenshot.png)
