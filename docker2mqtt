@@ -6,9 +6,9 @@ import json
 import queue
 import re
 import datetime
-from os import environ, devnull
+from os import environ
 from socket import gethostname
-from subprocess import run, Popen, PIPE, DEVNULL
+from subprocess import run, Popen, PIPE
 from threading import Thread
 from time import sleep, time
 
@@ -33,7 +33,7 @@ DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
-SWITCH_TOPIC_REGEX = r'^\w*\/(\w*)\_switch\/set$'
+SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
 JSON_ONLY_REGEX = r'^(\{.*\})\w*$'
 
 docker_events = {}
