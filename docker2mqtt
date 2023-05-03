@@ -5,17 +5,19 @@ import atexit
 import json
 import queue
 import re
+import datetime
 from os import environ
 from socket import gethostname
 from subprocess import run, Popen, PIPE
 from threading import Thread
 from time import sleep, time
 
-import paho.mqtt.client
+import paho.mqtt.client as mqtt
 
 DEBUG = environ.get('DEBUG', '1') == '1'
 DESTROYED_CONTAINER_TTL = int(environ.get('DESTROYED_CONTAINER_TTL', 24*60*60))
 HOMEASSISTANT_PREFIX = environ.get('HOMEASSISTANT_PREFIX', 'homeassistant')
+HOMEASSISTANT_NAME_PREFIX = environ.get('HOMEASSISTANT_NAME_PREFIX', 'docker')
 DOCKER2MQTT_HOSTNAME = environ.get('DOCKER2MQTT_HOSTNAME', gethostname())
 MQTT_CLIENT_ID = environ.get('MQTT_CLIENT_ID', 'docker2mqtt')
 MQTT_USER = environ.get('MQTT_USER', '')
@@ -25,111 +27,299 @@ MQTT_PORT = int(environ.get('MQTT_PORT', '1883'))
 MQTT_TIMEOUT = int(environ.get('MQTT_TIMEOUT', '30'))
 MQTT_TOPIC_PREFIX = environ.get('MQTT_TOPIC_PREFIX', 'docker')
 MQTT_QOS = int(environ.get('MQTT_QOS', 1))
-DISCOVERY_TOPIC = f'{HOMEASSISTANT_PREFIX}/binary_sensor/{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}_{{}}/config'
+DISCOVERY_TOPIC_STATE = f'{HOMEASSISTANT_PREFIX}/binary_sensor/{MQTT_TOPIC_PREFIX}/{{}}_state/config'
+DISCOVERY_TOPIC_STARTED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}_started/config'
+DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}_created/config'
+DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
+UP_EVENTS = ('create', 'rename', 'start', 'unpause')
+SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
+JSON_ONLY_REGEX = r'^(\{.*\})\.*$'
 
+docker_events = {}
 known_containers = {}
 pending_destroy_operations = {}
 docker_events_cmd = ['docker', 'events', '-f', 'type=container', '--format', '{{json .}}']
 docker_ps_cmd = ['docker', 'ps', '-a', '--format', '{{json .}}']
+docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
+docker_start_cmd = ['docker', 'start']
+docker_stop_cmd = ['docker', 'stop']
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
-
+mqtt_connected = True
+ha_online = True
+initialized = False
+client = mqtt.Client(f'{MQTT_CLIENT_ID}')
 
 @atexit.register
 def mqtt_disconnect():
     """Called by atexit to make sure we send our last_will message.
     """
-    mqtt.publish(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/status', 'offline', qos=MQTT_QOS, retain=True)
-    mqtt.disconnect()
+    client.publish(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
+    client.disconnect()
+    print('MQTT client disconnected')
     sleep(1)
-    mqtt.loop_stop()
+    client.loop_stop()
 
+def mqtt_connect():
+    global mqtt_connected
+    client.username_pw_set(username=MQTT_USER, password=MQTT_PASSWD)
+    client.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
+    client.on_message = message_received
+    client.on_unsubscribe = on_subscribe
+    client.on_log = on_log
+    client.on_connect = on_connect
+    client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
+    mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
+    if mqtt_connected == False:
+        mqtt_connected = True
+    client.subscribe('homeassistant/status')
+    print('MQTT connection initiated')
 
-def mqtt_send(topic, payload, retain=False):
+def mqtt_send(send_topic, payload, retain=False):
     try:
         if DEBUG:
-            print(f'Sending to MQTT: {topic}: {payload}')
-        mqtt.publish(topic, payload=payload, qos=MQTT_QOS, retain=retain)
-
+            print(f'Sending to MQTT: {send_topic}: {payload}')
+        client.publish(send_topic, payload=payload, qos=MQTT_QOS, retain=retain)
     except Exception as e:
         print(f'MQTT Publish Failed: {e}')
 
+def mqtt_receive(receive_topic):
+    try:
+        if DEBUG:
+            print(f'Subscribing to MQTT: {receive_topic}')
+        client.subscribe(receive_topic, qos=MQTT_QOS)
+        print (f'MQTT topic subscribed: {receive_topic}')
+    except Exception as e:
+        print(f'MQTT Subscribe Failed: {e}')
+        
+def on_subscribe(mosq, obj, mid, granted_qos):
+    print("Subscribed acknowledgment: " + str(mid) + " " + str(granted_qos))
 
 def register_container(container_entry):
     """
     """
+    global initialized
+    # Discover binary_sensor
     known_containers[container_entry['name']] = container_entry
-    registration_topic = DISCOVERY_TOPIC.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
-    registration_packet = {
-        'name': f"{MQTT_TOPIC_PREFIX.title()} {container_entry['name']}",
-        'unique_id': f'{MQTT_TOPIC_PREFIX}_{DOCKER2MQTT_HOSTNAME}_{registration_topic}',
-        'availability_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/status',
+    registration_topic_status = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
+    registration_packet_status = {
+        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]} state',
+        'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_status}',
+        'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+        'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
         'payload_available': 'online',
         'payload_not_available': 'offline',
-        'state_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}',
+        'state_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status',
         'value_template': '{{ value_json.state }}',
         'payload_on': 'on',
         'payload_off': 'off',
         'device_class': 'connectivity',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}',
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status'
     }
-    mqtt_send(registration_topic, json.dumps(registration_packet), retain=True)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container_entry["name"]}', json.dumps(container_entry), retain=True)
+    mqtt_send_topic_status = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status'
+    mqtt_send(registration_topic_status, json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4), retain=True)
+    mqtt_send(mqtt_send_topic_status, json.dumps(container_entry), retain=True)
 
+    # Discover switch
+    known_containers[container_entry['name']] = container_entry
+    registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
+    registration_packet_switch = {
+        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]} switch',
+        'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_switch}',
+        'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+        'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
+        'payload_available': 'online',
+        'payload_not_available': 'offline',
+        'state_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_status',
+        'command_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set',
+        'value_template': '{{ value_json.state }}',
+        'payload_on': 'on',
+        'payload_off': 'off',
+        'state_on': 'on',
+        'state_off': 'off',
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
+    }
+    mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch'
+    mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_switch/set'
+    print(f'Receive topic defined: {mqtt_receive_topic_switch}')
+    mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
+    mqtt_send(mqtt_send_topic_switch, json.dumps(container_entry), retain=True)
+    mqtt_receive(mqtt_receive_topic_switch)
+
+    # Discover 'started' sensor
+    known_containers[container_entry['name']] = container_entry
+    registration_topic_started = DISCOVERY_TOPIC_STARTED.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
+    registration_packet_started = {
+        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]} started',
+        'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_started}',
+        'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+        'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
+        'payload_available': 'online',
+        'payload_not_available': 'offline',
+        'state_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started',
+        'value_template': '{{ value_json.started }}',
+        'payload_on': 'on',
+        'payload_off': 'off',
+        'device_class': 'timestamp',
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started'
+    }
+    mqtt_send_topic_started = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_started'
+    mqtt_send(registration_topic_started, json.dumps(registration_packet_started, default=lambda o: o.__dict__, indent=4), retain=True)
+    mqtt_send(mqtt_send_topic_started, json.dumps(container_entry), retain=True)
+
+    # Discover 'created' sensor
+    known_containers[container_entry['name']] = container_entry
+    registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', container_entry['name']))
+    registration_packet_created = {
+        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]} created',
+        'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_created}',
+        'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["name"]}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_entry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+        'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
+        'payload_available': 'online',
+        'payload_not_available': 'offline',
+        'state_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created',
+        'value_template': '{{ value_json.created }}',
+        'payload_on': 'on',
+        'payload_off': 'off',
+        'device_class': 'timestamp',
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created'
+    }
+    mqtt_send_topic_created = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created'
+    mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
+    mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
+
+    initalized = True
 
 def readline_thread():
     """Run docker events and continually read lines from it.
     """
     with Popen(docker_events_cmd, stdout=PIPE, text=True) as proc:
         while True:
-            docker_events.put(proc.stdout.readline())
+            try:
+                docker_events.put(proc.stdout.readline())
+            except AttributeError:
+                remove_non_json = re.search(JSON_ONLY_REGEX, proc.stdout.readline())
+                print(f'{remove_non_json}')
+                remaining_json = remove_non_json.group(1)
+                print(f'{remaining_json}')
+                docker_events.put(remaining_json)
 
+def mqtt_listener():
+    print('Listener started')
+    client.on_message = message_received
+    client.loop_start()
+    sleep(4)
 
-if __name__ == '__main__':
-    # Setup MQTT
-    mqtt = paho.mqtt.client.Client()
-    mqtt.username_pw_set(username=MQTT_USER,password=MQTT_PASSWD)
-    mqtt.will_set(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/status', 'offline', qos=MQTT_QOS, retain=True)
-    mqtt.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
-    mqtt.loop_start()
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/status', 'online', retain=True)
+def message_received(client, userdata, message):
+    global ha_online
+    print(f'Message received')
+    print(f'Whole message: {message}')
+    print(f'Switch message: {message.topic} {str(message.payload)}')
+    if "homeassistant/status" in message.topic and "online" in str(message.payload):
+        ha_online = True
+        if initialized == True:
+            run_docker_ps()
+    elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
+        ha_online = False
+    else:
+        print(f'{message.topic}')
+        switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
+        print(f'{switch_message}')
+        container_name = switch_message.group(1)
+        print(container_name)
+        if 'on' in str(message.payload):
+            print(f'Switch on received on {message.topic}, {container_name}')
+            docker_start_cmd.append(container_name)
+            run(docker_start_cmd)
+            docker_start_cmd.remove(container_name)
+            print(f'Start command sent to docker for {container_name}')
+        elif 'off' in str(message.payload):
+            print(f'Switch off received on {message.topic}, {container_name}')
+            docker_stop_cmd.append(container_name)
+            run(docker_stop_cmd)
+            docker_stop_cmd.remove(container_name)
+            print(f'Stop command sent to docker for {container_name}')
 
+def on_log(client, userdata, level, string):
+    print(string)
+
+def on_connect(client, userdata, flags, rc):
+    global mqtt_connected
+    if rc == 0:
+        print('Connection established to broker')
+        mqtt_connected = True
+    else:
+        print('No connection established to broker')
+        mqtt_connected = False
+
+def run_docker_ps():
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
         container_status = json.loads(line)
+        container_details = 'unknown'
+        print(json.loads(line))
 
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
             state_str = 'off'
+            created = ''
+            started = ''
+            ipaddress = ''
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
+            docker_register_inspect = docker_inspect_cmd
+            docker_register_inspect.append(container_status['Names'])
+            container_inspect = run(docker_register_inspect, stdout=PIPE, text=True)
+            container_details = json.loads(container_inspect.stdout)
+            print(container_details)
+            docker_register_inspect.remove(container_status['Names'])
+            started = container_details['State']['StartedAt']
+            created = container_details['Created']
+            ip ={}
+            for adapter in container_details['NetworkSettings']['Networks']:
+              ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
+              ipaddress = f'{ip[adapter]}'
         else:
             status_str = 'stopped'
             state_str = 'off'
+            created = ''
+            started = ''
+            ipaddress = ''
         
         register_container({
             'name': container_status['Names'],
             'image': container_status['Image'],
+            'created': created,
             'status': status_str,
-            'state': state_str
+            'state': state_str,
+            'started': started,
+            'ip': ipaddress
         })
 
     # Start the docker events thread
     docker_events = queue.Queue()
     docker_events_t = Thread(target=readline_thread, daemon=True)
     docker_events_t.start()
-
+    
     # Loop and wait for new events
     while True:
+        client.loop_start()
+        sleep(4)
         # Remove any destroyed containers that have passed the TTL
         for container, destroyed_at in pending_destroy_operations.copy().items():
             if time() - destroyed_at > DESTROYED_CONTAINER_TTL:
                 print(f'Removing container {container} from MQTT.')
-                registration_topic = DISCOVERY_TOPIC.format(invalid_ha_topic_chars.sub('_', container))
-                mqtt_send(registration_topic, '', retain=True)
-                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container}', '', retain=True)
+                registration_topic_state = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', container))
+                mqtt_send(registration_topic_state, '', retain=True)
+                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', '', retain=True)
+                registration_topic_started = DISCOVERY_TOPIC_STARTED.format(invalid_ha_topic_chars.sub('_', container))
+                mqtt_send(registration_topic_started, '', retain=True)
+                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', '', retain=True)
+                registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', container))
+                mqtt_send(registration_topic_created, '', retain=True)
+                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_created', '', retain=True)
                 del(pending_destroy_operations[container])
 
         # Collect and process an event from `docker events`
@@ -142,8 +332,20 @@ if __name__ == '__main__':
         event = json.loads(line)
         if event['status'] not in WATCHED_EVENTS:
             continue
+        print(json.loads(line))
 
         container = event['Actor']['Attributes']['name']
+
+        if event['status'] in UP_EVENTS:
+            docker_event_inspect = docker_inspect_cmd
+            docker_event_inspect.append(container)
+            container_event_inspect = run(docker_event_inspect, stdout=PIPE, text=True)
+            container_event_details = json.loads(container_event_inspect.stdout)
+            docker_event_inspect.remove(container)
+            ip = {}
+            for adapter in container_event_details['NetworkSettings']['Networks']:
+              ip[adapter] = container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
+              ipaddress = f'{ip[adapter]}'
 
         if event['status'] == 'create':
             # Cancel any previous pending destroys and add this to known_containers.
@@ -156,7 +358,10 @@ if __name__ == '__main__':
                 'name': container,
                 'image': event['from'],
                 'status': 'created',
-                'state': 'off'
+                'state': 'off',
+                'created': container_event_details['Created'],
+                'started': container_event_details['State']['StartedAt'],
+                'ip': ipaddress
             })
 
         elif event['status'] == 'destroy':
@@ -165,29 +370,49 @@ if __name__ == '__main__':
             pending_destroy_operations[container] = time()
             known_containers[container]['status'] = 'destroyed'
             known_containers[container]['state'] = 'off'
+            known_containers[container]['created'] = 'unavailable'
+            known_containers[container]['started'] = 'unavailable'
+            known_containers[container]['ipaddress'] = ''
+
 
         elif event['status'] == 'die':
             print(f'Container {container} has stopped.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
+            known_containers[container]['created'] = ''
+            known_containers[container]['started'] = ''
+            known_containers[container]['ipaddress'] = ''
 
         elif event['status'] == 'pause':
             print(f'Container {container} has paused.')
             known_containers[container]['status'] = 'paused'
             known_containers[container]['state'] = 'off'
+            known_containers[container]['created'] = ''
+            known_containers[container]['started'] = ''
+            known_containers[container]['ipaddress'] = ''
 
         elif event['status'] == 'rename':
             old_name = event['Actor']['Attributes']['oldName']
             if old_name.startswith('/'):
                 old_name = old_name[1:]
             print(f'Container {old_name} renamed to {container}.')
-            mqtt_send(f'{HOMEASSISTANT_PREFIX}/binary_sensor/{MQTT_TOPIC_PREFIX}/{old_name}/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{old_name}', '', retain=True)
+            mqtt_send(f'{HOMEASSISTANT_PREFIX}/binary_sensor/{old_name}_status/config', '', retain=True)
+            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+            mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_started/config', '', retain=True)
+            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+            mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_created/config', '', retain=True)
+            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+            mqtt_send(f'{HOMEASSISTANT_PREFIX}/switch/{old_name}_switch/config', '', retain=True)
+            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+
             register_container({
                 'name': container,
                 'image': known_containers[old_name]['image'],
                 'status': known_containers[old_name]['status'],
-                'state': known_containers[old_name]['state']
+                'state': known_containers[old_name]['state'],
+                'created': container_details['Created'],
+                'started': container_details['State']['StartedAt'],
+                'ip': ipaddress
             })
             del(known_containers[old_name])
 
@@ -195,14 +420,32 @@ if __name__ == '__main__':
             print(f'Container {container} has started.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
+            known_containers[container]['created'] = container_details['Created']
+            known_containers[container]['started'] = container_details['State']['StartedAt']
+            known_containers[container]['ip'] = ipaddress
 
         elif event['status'] == 'unpause':
             print(f'Container {container} has unpaused.')
             known_containers[container]['status'] = 'running'
             known_containers[container]['state'] = 'on'
+            known_containers[container]['created'] = container_details['Created']
+            known_containers[container]['started'] = container_details['State']['StartedAt']
+            known_containers[container]['ip'] = ipaddress
 
         else:
             # Don't send an MQTT packet if nothing has changed
             continue
 
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{DOCKER2MQTT_HOSTNAME}/{container}', json.dumps(known_containers[container]), retain=True)
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
+
+
+if __name__ == '__main__':
+    mqtt_connect()
+    sleep(4)
+    if mqtt_connected == True:
+        print('Subscribing to listener and obtaining docker information')
+        mqtt_listener()
+        run_docker_ps()
+    else:
+        print('MQTT and docker not connected')
