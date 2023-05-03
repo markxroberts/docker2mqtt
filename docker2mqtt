@@ -34,7 +34,7 @@ DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
 SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
-JSON_ONLY_REGEX = r'^(\{.*\})\w*$'
+JSON_ONLY_REGEX = r'^(\{.*\})\.*$'
 
 docker_events = {}
 known_containers = {}
