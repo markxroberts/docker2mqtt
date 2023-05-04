@@ -443,7 +443,8 @@ async def start_loops():
     if mqtt_connected == True:
         print('Subscribing to listener and obtaining docker information')
         mqtt_listener()
-        await run_docker_ps()
+        config = run_docker_ps()
+        await config
         print(f'Containers registered with Home Assistant.  Starting events stream.')
         docker_event_stream()
     else:
