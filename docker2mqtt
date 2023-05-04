@@ -37,7 +37,7 @@ UP_EVENTS = ('create', 'rename', 'start', 'unpause')
 SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
 JSON_ONLY_REGEX = r'^(\{.*\})\.*$'
 
-docker_events = {}
+docker_events = queue.Queue()
 known_containers = {}
 container_details ={}
 pending_destroy_operations = {}
@@ -302,7 +302,6 @@ async def run_docker_ps():
 
     # Start the docker events thread
 def docker_event_stream():
-    docker_events = queue.Queue()
     docker_events_t = Thread(target=readline_thread, daemon=True)
     docker_events_t.start()
     
