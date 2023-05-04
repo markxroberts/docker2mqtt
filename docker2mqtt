@@ -449,6 +449,3 @@ if __name__ == '__main__':
         run_docker_ps()
     else:
         print('MQTT and docker not connected')
-    # Start MQTT events thread
-    # mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
-    # mqtt_events_t.start()
