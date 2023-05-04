@@ -188,7 +188,7 @@ def register_container(container_entry):
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
 
-    initalized = True
+    initialized = True
 
 def readline_thread():
     """Run docker events and continually read lines from it.
