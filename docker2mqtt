@@ -216,8 +216,6 @@ def message_received(client, userdata, message):
     print(f'Switch message: {message.topic} {str(message.payload)}')
     if "homeassistant/status" in message.topic and "online" in str(message.payload):
         ha_online = True
-        if initialized == True:
-            run_docker_ps()
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
     else:
