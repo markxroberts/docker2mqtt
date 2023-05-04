@@ -207,7 +207,7 @@ def readline_thread():
             try:
                 if is_json(proc.stdout.readline()) == True:
                     docker_events.put(proc.stdout.readline())
-                elif type(proc.stdout.readline()) is not list:
+                elif is_json(proc.stdout.readline()) == False:
                     remove_non_json = re.search(JSON_ONLY_REGEX, proc.stdout.readline())
                     remaining_json = remove_non_json.group(1)
                     if is_json(remaining_json) == True:
