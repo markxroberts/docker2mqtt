@@ -190,8 +190,6 @@ def register_container(container_entry):
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
 
-    initialized = True
-
 def readline_thread():
     """Run docker events and continually read lines from it.
     """
@@ -299,7 +297,8 @@ async def run_docker_ps():
             'started': started,
             'ip': ipaddress
         })
-    return
+        initialized = True
+    return initialized
 
     # Start the docker events thread
 def docker_event_stream():
@@ -450,8 +449,9 @@ async def start_loops():
         print('Subscribing to listener and obtaining docker information')
         mqtt_listener()
         await run_docker_ps()
+        print(f'Containers registered with Home Assistant.  Starting events stream.')
         if initialized == True:
-               docker_event_stream()
+            docker_event_stream()
         else:
             print(f'Error initializing') 
     else:
