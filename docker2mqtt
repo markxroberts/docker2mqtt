@@ -11,7 +11,6 @@ from socket import gethostname
 from subprocess import run, Popen, PIPE
 from threading import Thread
 from time import sleep, time
-import asyncio
 
 import paho.mqtt.client as mqtt
 
@@ -37,9 +36,8 @@ UP_EVENTS = ('create', 'rename', 'start', 'unpause')
 SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
 JSON_ONLY_REGEX = r'^(\{.*\})\.*$'
 
-docker_events = queue.Queue()
+docker_events = {}
 known_containers = {}
-container_details ={}
 pending_destroy_operations = {}
 docker_events_cmd = ['docker', 'events', '-f', 'type=container', '--format', '{{json .}}']
 docker_ps_cmd = ['docker', 'ps', '-a', '--format', '{{json .}}']
@@ -49,6 +47,7 @@ docker_stop_cmd = ['docker', 'stop']
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 mqtt_connected = True
 ha_online = True
+initialized = False
 client = mqtt.Client(f'{MQTT_CLIENT_ID}')
 
 @atexit.register
@@ -189,20 +188,22 @@ def register_container(container_entry):
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
 
+    initalized = True
+
 def readline_thread():
     """Run docker events and continually read lines from it.
     """
     with Popen(docker_events_cmd, stdout=PIPE, text=True) as proc:
         while True:
             try:
-                if type(proc.stdout.readline()) is list:
-                    docker_events.put(proc.stdout.readline())
-                elif type(proc.stdout.readline()) is not  list:
-                    remove_non_json = re.search(JSON_ONLY_REGEX, proc.stdout.readline())
-                    remaining_json = remove_non_json.group(1)
-                    docker_events.put(remaining_json)
+                docker_events.put(proc.stdout.readline())
             except AttributeError:
-                print(f'Error in output {proc.stdout.readline()}')
+                remove_non_json = re.search(JSON_ONLY_REGEX, proc.stdout.readline())
+                print(f'{remove_non_json}')
+                remaining_json = remove_non_json.group(1)
+                print(f'{remaining_json}')
+                docker_events.put(remaining_json)
+
 def mqtt_listener():
     print('Listener started')
     client.on_message = message_received
@@ -216,6 +217,8 @@ def message_received(client, userdata, message):
     print(f'Switch message: {message.topic} {str(message.payload)}')
     if "homeassistant/status" in message.topic and "online" in str(message.payload):
         ha_online = True
+        if initialized == True:
+            run_docker_ps()
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
     else:
@@ -249,7 +252,7 @@ def on_connect(client, userdata, flags, rc):
         print('No connection established to broker')
         mqtt_connected = False
 
-async def run_docker_ps():
+def run_docker_ps():
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
@@ -294,10 +297,9 @@ async def run_docker_ps():
             'started': started,
             'ip': ipaddress
         })
-    return
 
     # Start the docker events thread
-def docker_event_stream():
+    docker_events = queue.Queue()
     docker_events_t = Thread(target=readline_thread, daemon=True)
     docker_events_t.start()
     
@@ -437,18 +439,16 @@ def docker_event_stream():
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
 
-async def start_loops():
+
+if __name__ == '__main__':
     mqtt_connect()
     sleep(4)
     if mqtt_connected == True:
         print('Subscribing to listener and obtaining docker information')
         mqtt_listener()
-        config = run_docker_ps()
-        await config
-        print(f'Containers registered with Home Assistant.  Starting events stream.')
-        docker_event_stream()
+        run_docker_ps()
     else:
         print('MQTT and docker not connected')
-
-if __name__ == '__main__':
-    asyncio.run(start_loops())
+    # Start MQTT events thread
+    # mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
+    # mqtt_events_t.start()
