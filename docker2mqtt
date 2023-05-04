@@ -192,7 +192,7 @@ def register_container(container_entry):
 
     initialized = True
 
-async def is_json(myjson):
+def is_json(myjson):
     try:
         json_object = json.loads(myjson)
     except ValueError as e:
