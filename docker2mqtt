@@ -49,7 +49,6 @@ docker_stop_cmd = ['docker', 'stop']
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 mqtt_connected = True
 ha_online = True
-initialized = False
 client = mqtt.Client(f'{MQTT_CLIENT_ID}')
 
 @atexit.register
@@ -297,8 +296,7 @@ async def run_docker_ps():
             'started': started,
             'ip': ipaddress
         })
-        initialized = True
-    return initialized
+    return
 
     # Start the docker events thread
 def docker_event_stream():
@@ -449,10 +447,7 @@ async def start_loops():
         mqtt_listener()
         await run_docker_ps()
         print(f'Containers registered with Home Assistant.  Starting events stream.')
-        if initialized == True:
-            docker_event_stream()
-        else:
-            print(f'Error initializing') 
+        docker_event_stream()
     else:
         print('MQTT and docker not connected')
 
