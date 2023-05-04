@@ -205,7 +205,7 @@ def readline_thread():
             try:
                 docker_events.put(proc.stdout.readline())
             except AttributeError:
-                if ['{' and '}'] in proc.stdout.readline():
+                if type(proc.stdout.readline()) is not list:
                     remove_non_json = re.search(JSON_ONLY_REGEX, proc.stdout.readline())
                     print(f'{remove_non_json}')
                     remaining_json = remove_non_json.group(1)
