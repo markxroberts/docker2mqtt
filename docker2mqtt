@@ -11,6 +11,7 @@ from socket import gethostname
 from subprocess import run, Popen, PIPE
 from threading import Thread
 from time import sleep, time
+import asyncio
 
 import paho.mqtt.client as mqtt
 
@@ -468,4 +469,4 @@ async def start_loops():
         print('MQTT and docker not connected')
 
 if __name__ == '__main__':
-    start_loops()
+    asyncio.run(start_loops())
