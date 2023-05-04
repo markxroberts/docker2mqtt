@@ -38,6 +38,7 @@ JSON_ONLY_REGEX = r'^(\{.*\})\.*$'
 
 docker_events = {}
 known_containers = {}
+container_details ={}
 pending_destroy_operations = {}
 docker_events_cmd = ['docker', 'events', '-f', 'type=container', '--format', '{{json .}}']
 docker_ps_cmd = ['docker', 'ps', '-a', '--format', '{{json .}}']
@@ -190,7 +191,7 @@ def register_container(container_entry):
 
     initialized = True
 
-def is_json(myjson):
+async def is_json(myjson):
     try:
         json_object = json.loads(myjson)
     except ValueError as e:
@@ -263,7 +264,7 @@ def on_connect(client, userdata, flags, rc):
         print('No connection established to broker')
         mqtt_connected = False
 
-def run_docker_ps():
+async def run_docker_ps():
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
@@ -308,8 +309,10 @@ def run_docker_ps():
             'started': started,
             'ip': ipaddress
         })
+    return
 
     # Start the docker events thread
+def docker_event_stream():
     docker_events = queue.Queue()
     docker_events_t = Thread(target=readline_thread, daemon=True)
     docker_events_t.start()
@@ -450,13 +453,19 @@ def run_docker_ps():
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
 
-
-if __name__ == '__main__':
+async def start_loops():
     mqtt_connect()
     sleep(4)
     if mqtt_connected == True:
         print('Subscribing to listener and obtaining docker information')
         mqtt_listener()
-        run_docker_ps()
+        await run_docker_ps()
+        if initialized == True:
+               docker_event_stream()
+        else:
+            print(f'Error initializing') 
     else:
         print('MQTT and docker not connected')
+
+if __name__ == '__main__':
+    start_loops()
