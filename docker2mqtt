@@ -192,29 +192,20 @@ def register_container(container_entry):
 
     initialized = True
 
-def is_json(myjson):
-    try:
-        json_object = json.loads(myjson)
-    except ValueError as e:
-        return False
-    return True
-
 def readline_thread():
     """Run docker events and continually read lines from it.
     """
     with Popen(docker_events_cmd, stdout=PIPE, text=True) as proc:
         while True:
             try:
-                if is_json(proc.stdout.readline()) == True:
+                if type(proc.stdout.readline()) is list:
                     docker_events.put(proc.stdout.readline())
-                elif is_json(proc.stdout.readline()) == False:
+                elif type(proc.stdout.readline()) is not  list:
                     remove_non_json = re.search(JSON_ONLY_REGEX, proc.stdout.readline())
                     remaining_json = remove_non_json.group(1)
-                    if is_json(remaining_json) == True:
-                        docker_events.put(remaining_json)
+                    docker_events.put(remaining_json)
             except AttributeError:
-                print(f'Error in output')
-
+                print(f'Error in output {proc.stdout.readline()}')
 def mqtt_listener():
     print('Listener started')
     client.on_message = message_received
