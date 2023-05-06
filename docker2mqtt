@@ -234,7 +234,7 @@ def message_received(client, userdata, message):
             print(f'Start command sent to docker for {container_name}')
             sleep(2)
             docker_inspect_cmd.append(container_name)
-            run(docker_start_cmd)
+            run(docker_inspect_cmd)
             docker_inspect_cmd.remove(container_name)
         elif 'off' in str(message.payload):
             print(f'Switch off received on {message.topic}, {container_name}')
@@ -244,7 +244,7 @@ def message_received(client, userdata, message):
             print(f'Stop command sent to docker for {container_name}')
             sleep(2)
             docker_inspect_cmd.append(container_name)
-            run(docker_start_cmd)
+            run(docker_inspect_cmd)
             docker_inspect_cmd.remove(container_name)
 
 def on_log(client, userdata, level, string):
