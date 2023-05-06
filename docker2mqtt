@@ -209,6 +209,107 @@ def mqtt_listener():
     client.loop_start()
     sleep(4)
 
+def process_status_message(event, container):
+    if event['status'] in UP_EVENTS:
+        docker_event_inspect = docker_inspect_cmd
+        docker_event_inspect.append(container)
+        container_event_inspect = run(docker_event_inspect, stdout=PIPE, text=True)
+        container_event_details = json.loads(container_event_inspect.stdout)
+        docker_event_inspect.remove(container)
+        ip = {}
+        for adapter in container_event_details['NetworkSettings']['Networks']:
+            ip[adapter] = container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
+            ipaddress = f'{ip[adapter]}'
+
+    if event['status'] == 'create':
+        # Cancel any previous pending destroys and add this to known_containers.
+        print(f'Container {container} has been created.')
+        if container in pending_destroy_operations:
+            print(f'Removing pending delete for {{container}}.')
+            del(pending_destroy_operations[container])
+
+        register_container({
+            'name': container,
+            'image': event['from'],
+            'status': 'created',
+            'state': 'off',
+            'created': container_event_details['Created'],
+            'started': container_event_details['State']['StartedAt'],
+            'ip': ipaddress
+        })
+
+    elif event['status'] == 'destroy':
+        # Add this container to pending_destroy_operations.
+        print(f'Container {container} has been destroyed.')
+        pending_destroy_operations[container] = time()
+        known_containers[container]['status'] = 'destroyed'
+        known_containers[container]['state'] = 'off'
+        known_containers[container]['created'] = 'unavailable'
+        known_containers[container]['started'] = 'unavailable'
+        known_containers[container]['ipaddress'] = None
+
+
+    elif event['status'] == 'die':
+        print(f'Container {container} has stopped.')
+        known_containers[container]['status'] = 'stopped'
+        known_containers[container]['state'] = 'off'
+        known_containers[container]['created'] = None
+        known_containers[container]['started'] = None
+        known_containers[container]['ipaddress'] = None
+
+    elif event['status'] == 'pause':
+        print(f'Container {container} has paused.')
+        known_containers[container]['status'] = 'paused'
+        known_containers[container]['state'] = 'off'
+        known_containers[container]['created'] = None
+        known_containers[container]['started'] = None
+        known_containers[container]['ipaddress'] = None
+
+    elif event['status'] == 'rename':
+        old_name = event['Actor']['Attributes']['oldName']
+        if old_name.startswith('/'):
+            old_name = old_name[1:]
+        print(f'Container {old_name} renamed to {container}.')
+        mqtt_send(f'{HOMEASSISTANT_PREFIX}/binary_sensor/{old_name}_status/config', '', retain=True)
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+        mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_started/config', '', retain=True)
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+        mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_created/config', '', retain=True)
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+        mqtt_send(f'{HOMEASSISTANT_PREFIX}/switch/{old_name}_switch/config', '', retain=True)
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
+
+        register_container({
+            'name': container,
+            'image': known_containers[old_name]['image'],
+            'status': known_containers[old_name]['status'],
+            'state': known_containers[old_name]['state'],
+            'created': container_event_details['Created'],
+            'started': container_event_details['State']['StartedAt'],
+            'ip': ipaddress
+        })
+        del(known_containers[old_name])
+
+    elif event['status'] == 'start':
+        print(f'Container {container} has started.')
+        known_containers[container]['status'] = 'running'
+        known_containers[container]['state'] = 'on'
+        known_containers[container]['created'] = container_event_details['Created']
+        known_containers[container]['started'] = container_event_details['State']['StartedAt']
+        known_containers[container]['ip'] = ipaddress
+
+    elif event['status'] == 'unpause':
+        print(f'Container {container} has unpaused.')
+        known_containers[container]['status'] = 'running'
+        known_containers[container]['state'] = 'on'
+        known_containers[container]['created'] = container_event_details['Created']
+        known_containers[container]['started'] = container_event_details['State']['StartedAt']
+        known_containers[container]['ip'] = ipaddress
+
+    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
+    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
+    mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_created', json.dumps(known_containers[container]), retain=True)
+
 def message_received(client, userdata, message):
     global ha_online
     print(f'Message received')
@@ -233,9 +334,7 @@ def message_received(client, userdata, message):
             docker_start_cmd.remove(container_name)
             print(f'Start command sent to docker for {container_name}')
             sleep(2)
-            docker_inspect_cmd.append(container_name)
-            run(docker_inspect_cmd)
-            docker_inspect_cmd.remove(container_name)
+            process_status_message("started", container_name)
         elif 'off' in str(message.payload):
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
@@ -243,9 +342,7 @@ def message_received(client, userdata, message):
             docker_stop_cmd.remove(container_name)
             print(f'Stop command sent to docker for {container_name}')
             sleep(2)
-            docker_inspect_cmd.append(container_name)
-            run(docker_inspect_cmd)
-            docker_inspect_cmd.remove(container_name)
+            process_status_message("stopped", container_name)
 
 def on_log(client, userdata, level, string):
     print(string)
@@ -345,110 +442,10 @@ def run_docker_ps():
 
         container = event['Actor']['Attributes']['name']
 
-        if event['status'] in UP_EVENTS:
-            docker_event_inspect = docker_inspect_cmd
-            docker_event_inspect.append(container)
-            container_event_inspect = run(docker_event_inspect, stdout=PIPE, text=True)
-            container_event_details = json.loads(container_event_inspect.stdout)
-            docker_event_inspect.remove(container)
-            ip = {}
-            for adapter in container_event_details['NetworkSettings']['Networks']:
-              ip[adapter] = container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
-              ipaddress = f'{ip[adapter]}'
-
-        if event['status'] == 'create':
-            # Cancel any previous pending destroys and add this to known_containers.
-            print(f'Container {container} has been created.')
-            if container in pending_destroy_operations:
-                print(f'Removing pending delete for {{container}}.')
-                del(pending_destroy_operations[container])
-
-            register_container({
-                'name': container,
-                'image': event['from'],
-                'status': 'created',
-                'state': 'off',
-                'created': container_event_details['Created'],
-                'started': container_event_details['State']['StartedAt'],
-                'ip': ipaddress
-            })
-
-        elif event['status'] == 'destroy':
-            # Add this container to pending_destroy_operations.
-            print(f'Container {container} has been destroyed.')
-            pending_destroy_operations[container] = time()
-            known_containers[container]['status'] = 'destroyed'
-            known_containers[container]['state'] = 'off'
-            known_containers[container]['created'] = 'unavailable'
-            known_containers[container]['started'] = 'unavailable'
-            known_containers[container]['ipaddress'] = None
-
-
-        elif event['status'] == 'die':
-            print(f'Container {container} has stopped.')
-            known_containers[container]['status'] = 'stopped'
-            known_containers[container]['state'] = 'off'
-            known_containers[container]['created'] = None
-            known_containers[container]['started'] = None
-            known_containers[container]['ipaddress'] = None
-
-        elif event['status'] == 'pause':
-            print(f'Container {container} has paused.')
-            known_containers[container]['status'] = 'paused'
-            known_containers[container]['state'] = 'off'
-            known_containers[container]['created'] = None
-            known_containers[container]['started'] = None
-            known_containers[container]['ipaddress'] = None
-
-        elif event['status'] == 'rename':
-            old_name = event['Actor']['Attributes']['oldName']
-            if old_name.startswith('/'):
-                old_name = old_name[1:]
-            print(f'Container {old_name} renamed to {container}.')
-            mqtt_send(f'{HOMEASSISTANT_PREFIX}/binary_sensor/{old_name}_status/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
-            mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_started/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
-            mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_created/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
-            mqtt_send(f'{HOMEASSISTANT_PREFIX}/switch/{old_name}_switch/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
-
-            register_container({
-                'name': container,
-                'image': known_containers[old_name]['image'],
-                'status': known_containers[old_name]['status'],
-                'state': known_containers[old_name]['state'],
-                'created': container_details['Created'],
-                'started': container_details['State']['StartedAt'],
-                'ip': ipaddress
-            })
-            del(known_containers[old_name])
-
-        elif event['status'] == 'start':
-            print(f'Container {container} has started.')
-            known_containers[container]['status'] = 'running'
-            known_containers[container]['state'] = 'on'
-            known_containers[container]['created'] = container_details['Created']
-            known_containers[container]['started'] = container_details['State']['StartedAt']
-            known_containers[container]['ip'] = ipaddress
-
-        elif event['status'] == 'unpause':
-            print(f'Container {container} has unpaused.')
-            known_containers[container]['status'] = 'running'
-            known_containers[container]['state'] = 'on'
-            known_containers[container]['created'] = container_details['Created']
-            known_containers[container]['started'] = container_details['State']['StartedAt']
-            known_containers[container]['ip'] = ipaddress
-
-        else:
-            # Don't send an MQTT packet if nothing has changed
+        try:
+            process_status_message(event, container)
+        except:
             continue
-
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_created', json.dumps(known_containers[container]), retain=True)
-
 
 if __name__ == '__main__':
     mqtt_connect()
