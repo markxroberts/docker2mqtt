@@ -5,7 +5,6 @@ import atexit
 import json
 import queue
 import re
-import datetime
 from os import environ
 from socket import gethostname
 from subprocess import run, Popen, PIPE
@@ -233,12 +232,20 @@ def message_received(client, userdata, message):
             run(docker_start_cmd)
             docker_start_cmd.remove(container_name)
             print(f'Start command sent to docker for {container_name}')
+            sleep(2)
+            docker_inspect_cmd.append(container_name)
+            run(docker_start_cmd)
+            docker_inspect_cmd.remove(container_name)
         elif 'off' in str(message.payload):
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
             run(docker_stop_cmd)
             docker_stop_cmd.remove(container_name)
             print(f'Stop command sent to docker for {container_name}')
+            sleep(2)
+            docker_inspect_cmd.append(container_name)
+            run(docker_start_cmd)
+            docker_inspect_cmd.remove(container_name)
 
 def on_log(client, userdata, level, string):
     print(string)
@@ -263,9 +270,9 @@ def run_docker_ps():
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
             state_str = 'off'
-            created = ''
-            started = ''
-            ipaddress = ''
+            created = None
+            started = None
+            ipaddress = None
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'
@@ -284,9 +291,9 @@ def run_docker_ps():
         else:
             status_str = 'stopped'
             state_str = 'off'
-            created = ''
-            started = ''
-            ipaddress = ''
+            created = None
+            started = None
+            ipaddress = None
         
         register_container({
             'name': container_status['Names'],
@@ -319,6 +326,9 @@ def run_docker_ps():
                 registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', container))
                 mqtt_send(registration_topic_created, '', retain=True)
                 mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_created', '', retain=True)
+                registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', container))
+                mqtt_send(registration_topic_created, '', retain=True)
+                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_switch', '', retain=True)
                 del(pending_destroy_operations[container])
 
         # Collect and process an event from `docker events`
@@ -371,24 +381,24 @@ def run_docker_ps():
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = 'unavailable'
             known_containers[container]['started'] = 'unavailable'
-            known_containers[container]['ipaddress'] = ''
+            known_containers[container]['ipaddress'] = None
 
 
         elif event['status'] == 'die':
             print(f'Container {container} has stopped.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
-            known_containers[container]['created'] = ''
-            known_containers[container]['started'] = ''
-            known_containers[container]['ipaddress'] = ''
+            known_containers[container]['created'] = None
+            known_containers[container]['started'] = None
+            known_containers[container]['ipaddress'] = None
 
         elif event['status'] == 'pause':
             print(f'Container {container} has paused.')
             known_containers[container]['status'] = 'paused'
             known_containers[container]['state'] = 'off'
-            known_containers[container]['created'] = ''
-            known_containers[container]['started'] = ''
-            known_containers[container]['ipaddress'] = ''
+            known_containers[container]['created'] = None
+            known_containers[container]['started'] = None
+            known_containers[container]['ipaddress'] = None
 
         elif event['status'] == 'rename':
             old_name = event['Actor']['Attributes']['oldName']
@@ -437,6 +447,7 @@ def run_docker_ps():
 
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_created', json.dumps(known_containers[container]), retain=True)
 
 
 if __name__ == '__main__':
@@ -448,6 +459,3 @@ if __name__ == '__main__':
         run_docker_ps()
     else:
         print('MQTT and docker not connected')
-    # Start MQTT events thread
-    # mqtt_events_t = Thread(target=mqtt_listener, daemon=True)
-    # mqtt_events_t.start()
