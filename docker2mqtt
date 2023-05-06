@@ -312,6 +312,7 @@ def process_status_message(event, container):
 
 def message_received(client, userdata, message):
     global ha_online
+    new_event = {}
     print(f'Message received')
     print(f'Whole message: {message}')
     print(f'Switch message: {message.topic} {str(message.payload)}')
@@ -334,7 +335,8 @@ def message_received(client, userdata, message):
             docker_start_cmd.remove(container_name)
             print(f'Start command sent to docker for {container_name}')
             sleep(2)
-            process_status_message("started", container_name)
+            new_event['status'] = "started"
+            process_status_message(new_event, container_name)
         elif 'off' in str(message.payload):
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
@@ -342,7 +344,8 @@ def message_received(client, userdata, message):
             docker_stop_cmd.remove(container_name)
             print(f'Stop command sent to docker for {container_name}')
             sleep(2)
-            process_status_message("stopped", container_name)
+            new_event['status'] = 'stopped'
+            process_status_message(new_event, container_name)
 
 def on_log(client, userdata, level, string):
     print(string)
