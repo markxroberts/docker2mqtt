@@ -211,7 +211,7 @@ def mqtt_listener():
     sleep(4)
 
 def process_status_message(event, container):
-    if event['status'] in UP_EVENTS:
+    if event['status'] in WATCHED_EVENTS:
         docker_event_inspect = docker_inspect_cmd
         docker_event_inspect.append(container)
         container_event_inspect = run(docker_event_inspect, stdout=PIPE, text=True)
