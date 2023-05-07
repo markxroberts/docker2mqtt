@@ -367,34 +367,30 @@ def run_docker_ps():
         container_status = json.loads(line)
         container_details = 'unknown'
         print(json.loads(line))
+        docker_register_inspect = docker_inspect_cmd
+        docker_register_inspect.append(container_status['Names'])
+        container_inspect = run(docker_register_inspect, stdout=PIPE, text=True)
+        container_details = json.loads(container_inspect.stdout)
+        print(container_details)
+        docker_register_inspect.remove(container_status['Names'])
+        created = container_details['Created']
+        ip ={}
+        for adapter in container_details['NetworkSettings']['Networks']:
+            ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
+            ipaddress = f'{ip[adapter]}'
 
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
             state_str = 'off'
-            created = None
-            started = None
-            ipaddress = None
+            event = container_details['State']['FinishedAt']
         elif 'Up' in container_status['Status']:
             status_str = 'running'
-            state_str = 'on'
-            docker_register_inspect = docker_inspect_cmd
-            docker_register_inspect.append(container_status['Names'])
-            container_inspect = run(docker_register_inspect, stdout=PIPE, text=True)
-            container_details = json.loads(container_inspect.stdout)
-            print(container_details)
-            docker_register_inspect.remove(container_status['Names'])
+            state_str = 'on'           
             event = container_details['State']['StartedAt']
-            created = container_details['Created']
-            ip ={}
-            for adapter in container_details['NetworkSettings']['Networks']:
-              ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
-              ipaddress = f'{ip[adapter]}'
         else:
             status_str = 'stopped'
             state_str = 'off'
-            created = container_details['Created']
             event = container_details['State']['FinishedAt']
-            ipaddress = None
         
         register_container({
             'name': container_status['Names'],
