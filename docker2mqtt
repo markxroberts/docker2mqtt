@@ -449,10 +449,8 @@ def run_docker_ps():
 
 if __name__ == '__main__':
     mqtt_connect()
-    sleep(4)
     if mqtt_connected == True:
-        print('Subscribing to listener and obtaining docker information')
-        mqtt_listener()
+        print('Obtaining docker information')
         run_docker_ps()
     else:
         print('MQTT and docker not connected')
