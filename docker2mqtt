@@ -188,7 +188,7 @@ def register_container(container_entry):
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
 
-    initalized = True
+    initialized = True
 
 def readline_thread():
     """Run docker events and continually read lines from it.
@@ -203,12 +203,6 @@ def readline_thread():
                 remaining_json = remove_non_json.group(1)
                 print(f'{remaining_json}')
                 docker_events.put(remaining_json)
-
-def mqtt_listener():
-    print('Listener started')
-    client.on_message = message_received
-    client.loop_start()
-    sleep(4)
 
 def process_status_message(event, container):
     if event['status'] in WATCHED_EVENTS:
@@ -319,34 +313,34 @@ def message_received(client, userdata, message):
     print(f'Switch message: {message.topic} {str(message.payload)}')
     if "homeassistant/status" in message.topic and "online" in str(message.payload):
         ha_online = True
-        if initialized == True:
+        if initialized == False:
             run_docker_ps()
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
     else:
         print(f'{message.topic}')
         switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
-        print(f'{switch_message}')
+        print(f'Entire message from MQTT: {switch_message}')
         container_name = switch_message.group(1)
-        print(container_name)
+        print(f'Extracted container name: {container_name}')
         if 'on' in str(message.payload):
             print(f'Switch on received on {message.topic}, {container_name}')
             docker_start_cmd.append(container_name)
             run(docker_start_cmd)
             docker_start_cmd.remove(container_name)
             print(f'Start command sent to docker for {container_name}')
-            sleep(2)
-            new_event['status'] = "started"
-            process_status_message(new_event, container_name)
+            sleep(1)
+            # new_event['status'] = "started"
+            # process_status_message(new_event, container_name)
         elif 'off' in str(message.payload):
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
             run(docker_stop_cmd)
             docker_stop_cmd.remove(container_name)
             print(f'Stop command sent to docker for {container_name}')
-            sleep(2)
-            new_event['status'] = 'stopped'
-            process_status_message(new_event, container_name)
+            sleep(1)
+            # new_event['status'] = 'stopped'
+            # process_status_message(new_event, container_name)
 
 def on_log(client, userdata, level, string):
     print(string)
