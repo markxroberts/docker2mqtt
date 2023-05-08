@@ -92,7 +92,7 @@ def mqtt_receive(receive_topic):
         print(f'MQTT Subscribe Failed: {e}')
         
 def on_subscribe(mosq, obj, mid, granted_qos):
-    print("Subscribed acknowledgment: Mid" + str(mid) + " QoS " + str(granted_qos))
+    print("Subscribed acknowledgment: Mid " + str(mid) + " QoS " + str(granted_qos))
 
 def register_container(container_entry):
     """
@@ -188,7 +188,6 @@ def register_container(container_entry):
         mqtt_send_topic_created = f'{MQTT_TOPIC_PREFIX}/{container_entry["name"]}_created'
         mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
         mqtt_send(mqtt_send_topic_created, json.dumps(container_entry), retain=True)
-        initialized = True
     else:
         print(f'Home assistant not online, skipping autodiscovery.')
 
@@ -368,6 +367,7 @@ def on_connect(client, userdata, flags, rc):
         print('No connection established to broker')    
 
 def run_docker_ps():
+    global initialized
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
@@ -407,7 +407,7 @@ def run_docker_ps():
             'event': event,
             'ip': ipaddress
         })
-
+    initialized = True
     # Start the docker events thread
     docker_events_t = Thread(target=readline_thread, daemon=True)
     docker_events_t.start()
