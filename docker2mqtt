@@ -451,7 +451,7 @@ def run_docker_ps():
 
 if __name__ == '__main__':
     listener = fork()
-    if listener is 0:
+    if listener == 0:
         mqtt_connect()
     else:
         docker_ps_start = wait()
