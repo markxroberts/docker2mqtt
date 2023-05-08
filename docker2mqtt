@@ -68,6 +68,7 @@ def mqtt_connect():
     client.on_unsubscribe = on_subscribe
     client.on_log = on_log
     client.on_connect = on_connect
+    client.loop_start()
     client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
     if mqtt_connected == False:
