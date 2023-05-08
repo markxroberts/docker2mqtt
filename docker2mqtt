@@ -67,11 +67,11 @@ def mqtt_connect():
     client.on_subscribe = on_subscribe
     client.on_log = on_log
     client.on_connect = on_connect
+    client.loop_start()
     try:
         client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     except:
         print(f'Client failed to connect')
-    client.loop_start()
 
 def mqtt_send(send_topic, payload, retain=False):
     try:
@@ -361,7 +361,6 @@ def on_connect(client, userdata, flags, rc):
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
         client.subscribe('homeassistant/status')
         print('MQTT connection initiated')
-        client.loop_start()
     else:
         print('No connection established to broker')    
 
