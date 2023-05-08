@@ -44,7 +44,6 @@ docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
 docker_start_cmd = ['docker', 'start']
 docker_stop_cmd = ['docker', 'stop']
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
-mqtt_connected = True
 ha_online = True
 initialized = False
 running_event = {}
@@ -61,18 +60,17 @@ def mqtt_disconnect():
     client.loop_stop()
 
 def mqtt_connect():
-    global mqtt_connected
     client.username_pw_set(username=MQTT_USER, password=MQTT_PASSWD)
     client.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     client.on_message = message_received
     client.on_subscribe = on_subscribe
     client.on_log = on_log
     client.on_connect = on_connect
-    client.loop_start()
     try:
         client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     except:
         print(f'Client failed to connect')
+    client.loop_start()
     sleep(4)
 
 def mqtt_send(send_topic, payload, retain=False):
@@ -93,7 +91,7 @@ def mqtt_receive(receive_topic):
         print(f'MQTT Subscribe Failed: {e}')
         
 def on_subscribe(mosq, obj, mid, granted_qos):
-    print("Subscribed acknowledgment: " + str(mid) + " " + str(granted_qos))
+    print("Subscribed acknowledgment: Mid" + str(mid) + " QoS " + str(granted_qos))
 
 def register_container(container_entry):
     """
@@ -360,20 +358,13 @@ def on_log(client, userdata, level, string):
     print(string)
 
 def on_connect(client, userdata, flags, rc):
-    global mqtt_connected
     if rc == 0:
         print('Connection established to broker')
-        mqtt_connected = True
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
-        if mqtt_connected == False:
-            mqtt_connected = True
         client.subscribe('homeassistant/status')
         print('MQTT connection initiated')
-        client.loop_start()
     else:
-        print('No connection established to broker')
-        mqtt_connected = False
-    
+        print('No connection established to broker')    
 
 def run_docker_ps():
     # Register containers with HA
