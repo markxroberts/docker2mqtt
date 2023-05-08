@@ -5,7 +5,7 @@ import atexit
 import json
 import queue
 import re
-from os import environ
+from os import environ, fork, wait
 from socket import gethostname
 from subprocess import run, Popen, PIPE
 from threading import Thread
@@ -450,6 +450,9 @@ def run_docker_ps():
             continue
 
 if __name__ == '__main__':
-    mqtt_connect()
-    sleep(10)
-    run_docker_ps()
+    listener = fork()
+    if listener is 0:
+        mqtt_connect()
+    else:
+        docker_ps_start = wait()
+        run_docker_ps()
