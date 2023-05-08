@@ -71,6 +71,7 @@ def mqtt_connect():
         client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     except:
         print(f'Client failed to connect')
+    client.loop_start()
 
 def mqtt_send(send_topic, payload, retain=False):
     try:
