@@ -207,9 +207,9 @@ def readline_thread():
                 container_id = remove_non_json.group(2)
                 print(f'Message separated')
                 docker_events.put(remaining_json)
-                if running_event['status'] == 'start' and running_event['container'] == container_id:
+                if running_event[0]['status'] == 'start' and running_event[0]['container'] == container_id:
                     status_update = {
-                        'state': f'{running_event["status"]}'
+                        'state': f'{running_event[0]["status"]}'
                     }
                     mqtt_send_status_update_switch = f'{MQTT_TOPIC_PREFIX}/{running_event["container"]}_switch'
                     mqtt_send(mqtt_send_status_update_switch, json.dumps(status_update), retain=True)
@@ -338,8 +338,8 @@ def message_received(client, userdata, message):
         container_name = switch_message.group(1)
         print(f'Extracted container name: {container_name}')
         if 'on' in str(message.payload):
-            running_event['status'] == 'on'
-            running_event['container'] == container_name
+            running_event[0]['status'] == 'on'
+            running_event[0]['container'] == container_name
             print(f'Switch on received on {message.topic}, {container_name}')
             docker_start_cmd.append(container_name)
             run(docker_start_cmd)
@@ -347,8 +347,8 @@ def message_received(client, userdata, message):
             print(f'Start command sent to docker for {container_name}')
             sleep(1)
         elif 'off' in str(message.payload):
-            running_event['status'] == 'on'
-            running_event['container'] == container_name
+            running_event[0]['status'] == 'on'
+            running_event[0]['container'] == container_name
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
             run(docker_stop_cmd)
