@@ -323,13 +323,13 @@ def message_received(client, userdata, message):
         ha_online = True
         print(f'Home assistant is online.  Checking if docker2mqtt initialized.')
         if initialized == False:
-            print(f'Docker2mqtt not initialized.  Initializing...')
+            print(f'Docker2mqtt not initialized.  Obtaining docker information')
             run_docker_ps()
         if initialized == True:
             print(f'Docker2mqtt initialized.  Home Assistant back online.  Repeating autodiscovery.')
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
-        print(f'home assistant is offline')
+        print(f'Home Assistant is offline.  Awaiting Home Assistant status change')
         sleep(4)
     else:
         print(f'{message.topic}')
@@ -463,8 +463,3 @@ def run_docker_ps():
 if __name__ == '__main__':
     mqtt_connect()
     sleep(4)
-    if mqtt_connected == True:
-        print('Obtaining docker information')
-        run_docker_ps()
-    else:
-        print('MQTT and docker not connected, reattempting connection')
