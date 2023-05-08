@@ -26,6 +26,7 @@ MQTT_PORT = int(environ.get('MQTT_PORT', '1883'))
 MQTT_TIMEOUT = int(environ.get('MQTT_TIMEOUT', '30'))
 MQTT_TOPIC_PREFIX = environ.get('MQTT_TOPIC_PREFIX', 'docker')
 MQTT_QOS = int(environ.get('MQTT_QOS', 1))
+MQTT_LOG_LEVEL = "MQTT_LOG_DEBUG"
 DISCOVERY_TOPIC_STATE = f'{HOMEASSISTANT_PREFIX}/binary_sensor/{MQTT_TOPIC_PREFIX}/{{}}_state/config'
 DISCOVERY_TOPIC_EVENT = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}_event/config'
 DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}_created/config'
@@ -354,7 +355,7 @@ def message_received(client, userdata, message):
             print(f'Stop command sent to docker for {container_name}')
             sleep(1)
 
-def on_log(client, userdata, level, string):
+def on_log(client, userdata, MQTT_LOG_LEVEL, string):
     print(string)
 
 def on_connect(client, userdata, flags, rc):
