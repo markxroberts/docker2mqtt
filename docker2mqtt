@@ -71,8 +71,6 @@ def mqtt_connect():
         client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     except:
         print(f'Client failed to connect')
-    client.loop_start()
-    sleep(4)
 
 def mqtt_send(send_topic, payload, retain=False):
     try:
@@ -455,3 +453,4 @@ def run_docker_ps():
 if __name__ == '__main__':
     mqtt_connect()
     sleep(4)
+    client.loop_start()
