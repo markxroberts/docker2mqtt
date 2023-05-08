@@ -338,8 +338,8 @@ def message_received(client, userdata, message):
         container_name = switch_message.group(1)
         print(f'Extracted container name: {container_name}')
         if 'on' in str(message.payload):
-            running_event[0]['status'] == 'on'
-            running_event[0]['container'] == container_name
+            running_event[0]['status'] = 'on'
+            running_event[0]['container'] = container_name
             print(f'Switch on received on {message.topic}, {container_name}')
             docker_start_cmd.append(container_name)
             run(docker_start_cmd)
@@ -347,8 +347,8 @@ def message_received(client, userdata, message):
             print(f'Start command sent to docker for {container_name}')
             sleep(1)
         elif 'off' in str(message.payload):
-            running_event[0]['status'] == 'on'
-            running_event[0]['container'] == container_name
+            running_event[0]['status'] = 'on'
+            running_event[0]['container'] = container_name
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
             run(docker_stop_cmd)
