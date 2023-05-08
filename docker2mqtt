@@ -452,5 +452,5 @@ def run_docker_ps():
 
 if __name__ == '__main__':
     mqtt_connect()
-    sleep(4)
     client.loop_start()
+    sleep(4)
