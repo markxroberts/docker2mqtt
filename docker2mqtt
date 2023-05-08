@@ -68,7 +68,11 @@ def mqtt_connect():
     client.on_unsubscribe = on_subscribe
     client.on_log = on_log
     client.on_connect = on_connect
-    client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
+    client.loop_start()
+    try:
+        client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
+    except:
+        print(f'Client failed to connect')
     sleep(4)
 
 def mqtt_send(send_topic, payload, retain=False):
@@ -419,6 +423,7 @@ def run_docker_ps():
     
     # Loop and wait for new events
     while True:
+        client.loop_start()
         # Remove any destroyed containers that have passed the TTL
         for container, destroyed_at in pending_destroy_operations.copy().items():
             if time() - destroyed_at > DESTROYED_CONTAINER_TTL:
@@ -458,10 +463,9 @@ def run_docker_ps():
 
 if __name__ == '__main__':
     mqtt_connect()
-    sleep(10)
+    sleep(4)
     if mqtt_connected == True:
         print('Obtaining docker information')
         run_docker_ps()
     else:
-        print('MQTT and docker not connected')
-        client.loop_start()
+        print('MQTT and docker not connected, reattempting connection')
