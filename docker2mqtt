@@ -69,11 +69,7 @@ def mqtt_connect():
     client.on_log = on_log
     client.on_connect = on_connect
     client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
-    mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
-    if mqtt_connected == False:
-        mqtt_connected = True
-    client.subscribe('homeassistant/status')
-    print('MQTT connection initiated')
+    sleep(4)
 
 def mqtt_send(send_topic, payload, retain=False):
     try:
@@ -364,9 +360,16 @@ def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print('Connection established to broker')
         mqtt_connected = True
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
+        if mqtt_connected == False:
+            mqtt_connected = True
+        client.subscribe('homeassistant/status')
+        print('MQTT connection initiated')
+        client.loop_start()
     else:
         print('No connection established to broker')
         mqtt_connected = False
+    
 
 def run_docker_ps():
     # Register containers with HA
@@ -416,8 +419,6 @@ def run_docker_ps():
     
     # Loop and wait for new events
     while True:
-        client.loop_start()
-        sleep(4)
         # Remove any destroyed containers that have passed the TTL
         for container, destroyed_at in pending_destroy_operations.copy().items():
             if time() - destroyed_at > DESTROYED_CONTAINER_TTL:
