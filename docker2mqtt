@@ -351,11 +351,10 @@ def message_received(client, userdata, message):
         ha_online = True
         print(f'Home assistant is online.  Checking if docker2mqtt initialized.')
         if initialized == False:
-            print(f'Docker2mqtt not initialized.  Initializing...')
-            client.loop_start()
-            run_docker_ps()
+            print(f'Docker2mqtt autodiscovery not complete.  Initiating...')
+            register_containers()
         if initialized == True:
-            print(f'Docker2mqtt initialized.  Home Assistant back online.  Repeating autodiscovery.')
+            print(f'Docker2mqtt autodiscovery complete.  Home Assistant back online.  Repeating autodiscovery.')
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
         print(f'home assistant is offline')
@@ -395,8 +394,6 @@ def on_connect(client, userdata, flags, rc):
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
         mqtt_receive('homeassistant/status')
         mqtt_connected = True
-        client.loop_start()
-        register_containers()
         sleep(10)
     else:
         print('No connection established to broker')
@@ -452,8 +449,6 @@ def docker_events_process():
     
     # Loop and wait for new events
     while True:
-        client.loop_start()
-        sleep(4)
         # Remove any destroyed containers that have passed the TTL
         for container, destroyed_at in pending_destroy_operations.copy().items():
             if time() - destroyed_at > DESTROYED_CONTAINER_TTL:
