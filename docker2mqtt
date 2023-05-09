@@ -45,7 +45,7 @@ docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
 docker_start_cmd = ['docker', 'start']
 docker_stop_cmd = ['docker', 'stop']
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
-mqtt_connected = True
+mqtt_connected = False
 ha_online = True
 initialized = False
 running_event = {}
@@ -388,9 +388,7 @@ def on_connect(client, userdata, flags, rc):
         print('Connection established to broker')
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
         mqtt_receive('homeassistant/status')
-    if mqtt_connected == False:
         mqtt_connected = True
-
     else:
         print('No connection established to broker')
         mqtt_connected = False
