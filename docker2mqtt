@@ -391,6 +391,7 @@ def on_connect(client, userdata, flags, rc):
         mqtt_receive('homeassistant/status')
         mqtt_connected = True
         client.loop_start()
+        sleep(4)
     else:
         print('No connection established to broker')
         mqtt_connected = False
