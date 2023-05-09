@@ -49,6 +49,7 @@ invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 mqtt_connected = False
 ha_online = False
 initialized = False
+initializing = False
 running_event = {}
 client = mqtt.Client(f'{MQTT_CLIENT_ID}')
 
@@ -99,12 +100,15 @@ def register_containers():
     """
     """
     global initialized
+    global initializing
+    initializing = True
     if ha_online == True:
         print(f'Registering containers with MQTT')
         for docker in container_registry:
         # Discover binary_sensor
             if docker not in known_containers:
                 known_containers[docker] = container_registry[docker]
+                status = container_registry[docker]
                 image = container_registry[docker]['image']
                 registration_topic_status = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', docker))
                 registration_packet_status = {
@@ -123,7 +127,7 @@ def register_containers():
                 }
                 mqtt_send_topic_status = f'{MQTT_TOPIC_PREFIX}/{docker}_status'
                 mqtt_send(registration_topic_status, json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4), retain=True)
-                mqtt_send(mqtt_send_topic_status, json.dumps(container_registry), retain=True)
+                mqtt_send(mqtt_send_topic_status, json.dumps(status), retain=True)
 
                 # Discover switch
                 registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', docker))
@@ -148,7 +152,7 @@ def register_containers():
                 mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{docker}_switch/set'
                 print(f'Receive topic defined: {mqtt_receive_topic_switch}')
                 mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
-                mqtt_send(mqtt_send_topic_switch, json.dumps(container_registry), retain=True)
+                mqtt_send(mqtt_send_topic_switch, json.dumps(status), retain=True)
                 mqtt_receive(mqtt_receive_topic_switch)
 
                 # Discover 'event type' sensor
@@ -169,7 +173,7 @@ def register_containers():
                 }
                 mqtt_send_topic_event_type = f'{MQTT_TOPIC_PREFIX}/{docker}_event_type'
                 mqtt_send(registration_topic_event_type, json.dumps(registration_packet_event_type, default=lambda o: o.__dict__, indent=4), retain=True)
-                mqtt_send(mqtt_send_topic_event_type, json.dumps(container_registry), retain=True)
+                mqtt_send(mqtt_send_topic_event_type, json.dumps(status), retain=True)
 
                 # Discover 'event date' sensor
                 registration_topic_event = DISCOVERY_TOPIC_EVENT.format(invalid_ha_topic_chars.sub('_', docker))
@@ -189,7 +193,7 @@ def register_containers():
                 }
                 mqtt_send_topic_started = f'{MQTT_TOPIC_PREFIX}/{docker}_event'
                 mqtt_send(registration_topic_event, json.dumps(registration_packet_event, default=lambda o: o.__dict__, indent=4), retain=True)
-                mqtt_send(mqtt_send_topic_started, json.dumps(container_registry), retain=True)
+                mqtt_send(mqtt_send_topic_started, json.dumps(status), retain=True)
 
                 # Discover 'created' sensor
                 registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', docker))
@@ -209,10 +213,11 @@ def register_containers():
                 }
                 mqtt_send_topic_created = f'{MQTT_TOPIC_PREFIX}/{docker}_created'
                 mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
-                mqtt_send(mqtt_send_topic_created, json.dumps(container_registry), retain=True)
+                mqtt_send(mqtt_send_topic_created, json.dumps(status), retain=True)
             else:
                 print(f'Docker already registered')
         initialized = True
+        initializing = False
     else:
         print(f'Home assistant not online, skipping autodiscovery.')
 
@@ -257,7 +262,7 @@ def process_status_message(event, container):
             print(f'Removing pending delete for {{container}}.')
             del(pending_destroy_operations[container])
 
-        container_registry.append({
+        container_registry[container] = {
             'name': container,
             'image': event['from'],
             'status': 'created',
@@ -265,7 +270,7 @@ def process_status_message(event, container):
             'created': container_event_details['Created'],
             'event': container_event_details['State']['StartedAt'],
             'ip': ipaddress
-        })
+        }
         register_containers()
 
     elif event['status'] == 'destroy':
@@ -311,7 +316,7 @@ def process_status_message(event, container):
         mqtt_send(f'{HOMEASSISTANT_PREFIX}/switch/{old_name}_switch/config', '', retain=True)
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
 
-        container_registry.append({
+        container_registry[container] = {
             'name': container,
             'image': known_containers[old_name]['image'],
             'status': known_containers[old_name]['status'],
@@ -319,7 +324,7 @@ def process_status_message(event, container):
             'created': container_event_details['Created'],
             'event': container_event_details['State']['StartedAt'],
             'ip': ipaddress
-        })
+        }
         register_containers()
         del(known_containers[old_name])
 
@@ -351,11 +356,11 @@ def message_received(client, userdata, message):
     if "homeassistant/status" in message.topic and "online" in str(message.payload):
         ha_online = True
         print(f'Home assistant is online.  Checking if docker2mqtt initialized.')
-        if initialized == False:
+        if initialized == False and initializing == False:
             print(f'Docker2mqtt autodiscovery not complete.  Initiating...')
             register_containers()
-        if initialized == True:
-            print(f'Docker2mqtt autodiscovery complete.  Home Assistant back online.  Repeating autodiscovery.')
+        elif initialized == True:
+            print(f'Docker2mqtt autodiscovery complete.  Home Assistant back online.')
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
         print(f'home assistant is offline')
@@ -405,7 +410,6 @@ def run_docker_ps():
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
         container_status = json.loads(line)
-        container_details = 'unknown'
         print(json.loads(line))
         docker_register_inspect = docker_inspect_cmd
         docker_register_inspect.append(container_status['Names'])
@@ -442,6 +446,7 @@ def run_docker_ps():
             'event': event,
             'ip': ipaddress
         }
+        print(f'{container_registry[container_status["Names"]]}')
     print(f'All container details read from Docker')
 
 def docker_events_process():
