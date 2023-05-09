@@ -491,5 +491,5 @@ def docker_events_process():
 
 if __name__ == '__main__':
     run_docker_ps()
-    docker_events_process()
     mqtt_connect()
+    docker_events_process()
