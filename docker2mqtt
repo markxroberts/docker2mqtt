@@ -100,7 +100,8 @@ def register_containers():
     """
     global initialized
     if ha_online == True:
-        for docker in container_registry['Names']:
+        print(f'Registering containers with MQTT')
+        for docker in container_registry[docker]:
         # Discover binary_sensor
             if docker not in known_containers[docker]:
                 known_containers[docker] = docker
@@ -432,7 +433,7 @@ def run_docker_ps():
             state_str = 'off'
             event = container_details['State']['FinishedAt']
         
-        container_registry['Names'] = {
+        container_registry[container_status['Names']] = {
             'name': container_status['Names'],
             'image': container_status['Image'],
             'created': created,
@@ -441,6 +442,7 @@ def run_docker_ps():
             'event': event,
             'ip': ipaddress
         }
+    print(f'Container details read from Docker')
 
 def docker_events_process():
     docker_events_t = Thread(target=readline_thread, daemon=True)
