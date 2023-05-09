@@ -433,6 +433,7 @@ def run_docker_ps():
             state_str = 'off'
             event = container_details['State']['FinishedAt']
         
+        print('Container details added to registry')
         container_registry[container_status['Names']] = {
             'name': container_status['Names'],
             'image': container_status['Image'],
@@ -442,7 +443,7 @@ def run_docker_ps():
             'event': event,
             'ip': ipaddress
         }
-    print(f'Container details read from Docker')
+    print(f'All container details read from Docker')
 
 def docker_events_process():
     docker_events_t = Thread(target=readline_thread, daemon=True)
