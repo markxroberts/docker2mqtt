@@ -71,6 +71,7 @@ def mqtt_connect():
     client.on_connect = on_connect
     client.loop_start()
     client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
+    sleep(4)
     print('MQTT connection initiated')
 
 def mqtt_send(send_topic, payload, retain=False):
