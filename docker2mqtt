@@ -109,7 +109,7 @@ def register_containers():
                 registration_packet_status = {
                     'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker} state',
                     'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_status}',
-                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_registry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
                     'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
                     'payload_available': 'online',
                     'payload_not_available': 'offline',
@@ -129,7 +129,7 @@ def register_containers():
                 registration_packet_switch = {
                     'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker} switch',
                     'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_switch}',
-                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_registry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
                     'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
                     'payload_available': 'online',
                     'payload_not_available': 'offline',
@@ -155,7 +155,7 @@ def register_containers():
                 registration_packet_event_type = {
                     'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker} event',
                     'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_event_type}',
-                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_registry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
                     'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
                     'payload_available': 'online',
                     'payload_not_available': 'offline',
@@ -175,7 +175,7 @@ def register_containers():
                 registration_packet_event = {
                     'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker} event',
                     'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_event}',
-                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_registry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
                     'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
                     'payload_available': 'online',
                     'payload_not_available': 'offline',
@@ -195,7 +195,7 @@ def register_containers():
                 registration_packet_created = {
                     'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker} created',
                     'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_created}',
-                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {container_registry["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker["image"]}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
                     'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
                     'payload_available': 'online',
                     'payload_not_available': 'offline',
