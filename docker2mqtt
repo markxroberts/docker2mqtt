@@ -101,10 +101,10 @@ def register_containers():
     global initialized
     if ha_online == True:
         print(f'Registering containers with MQTT')
-        for docker in container_registry[docker]:
+        for docker in container_registry:
         # Discover binary_sensor
-            if docker not in known_containers[docker]:
-                known_containers[docker] = docker
+            if docker not in known_containers:
+                known_containers[docker] = container_registry[docker]
                 registration_topic_status = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', docker))
                 registration_packet_status = {
                     'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker} state',
@@ -396,6 +396,7 @@ def on_connect(client, userdata, flags, rc):
         mqtt_receive('homeassistant/status')
         mqtt_connected = True
         client.loop_start()
+        register_containers()
         sleep(10)
     else:
         print('No connection established to broker')
@@ -433,7 +434,7 @@ def run_docker_ps():
             state_str = 'off'
             event = container_details['State']['FinishedAt']
         
-        print('Container details added to registry')
+        print(f'Container details for {container_status["Names"]} added to registry')
         container_registry[container_status['Names']] = {
             'name': container_status['Names'],
             'image': container_status['Image'],
@@ -495,6 +496,5 @@ def docker_events_process():
 
 if __name__ == '__main__':
     run_docker_ps()
-    mqtt_connect()
-    register_containers()
     docker_events_process()
+    mqtt_connect()
