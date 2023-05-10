@@ -35,6 +35,7 @@ DISCOVERY_TOPIC_RESTART = f'{HOMEASSISTANT_PREFIX}/button/{MQTT_TOPIC_PREFIX}/{{
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
 SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
+RESTART_TOPIC_REGEX = r'^.*\/(.*)\_restart\/set$'
 JSON_ONLY_REGEX = r'^(\{.*\})(\.*)$'
 
 docker_events = queue.Queue()
@@ -400,29 +401,34 @@ def message_received(client, userdata, message):
         sleep(4)
     else:
         print(f'{message.topic}')
-        switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
-        print(f'Entire message from MQTT: {switch_message}')
-        container_name = switch_message.group(1)
-        print(f'Extracted container name: {container_name}')
-        if 'on' in str(message.payload):
-            running_event['state'] = 'on'
-            running_event['container'] = container_name
-            print(f'Switch on received on {message.topic}, {container_name}')
-            docker_start_cmd.append(container_name)
-            run(docker_start_cmd)
-            docker_start_cmd.remove(container_name)
-            print(f'Start command sent to docker for {container_name}')
-            sleep(1)
-        elif 'off' in str(message.payload):
-            running_event['state'] = 'on'
-            running_event['container'] = container_name
-            print(f'Switch off received on {message.topic}, {container_name}')
-            docker_stop_cmd.append(container_name)
-            run(docker_stop_cmd)
-            docker_stop_cmd.remove(container_name)
-            print(f'Stop command sent to docker for {container_name}')
-            sleep(1)
-        elif 'restart' in str(message.payload):
+        if 'switch' in str(message.topic):
+            switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
+            print(f'Entire message from MQTT: {switch_message}')
+            container_name = switch_message.group(1)
+            print(f'Extracted container name: {container_name}')
+            if 'on' in str(message.payload):
+                running_event['state'] = 'on'
+                running_event['container'] = container_name
+                print(f'Switch on received on {message.topic}, {container_name}')
+                docker_start_cmd.append(container_name)
+                run(docker_start_cmd)
+                docker_start_cmd.remove(container_name)
+                print(f'Start command sent to docker for {container_name}')
+                sleep(1)
+            elif 'off' in str(message.payload):
+                running_event['state'] = 'on'
+                running_event['container'] = container_name
+                print(f'Switch off received on {message.topic}, {container_name}')
+                docker_stop_cmd.append(container_name)
+                run(docker_stop_cmd)
+                docker_stop_cmd.remove(container_name)
+                print(f'Stop command sent to docker for {container_name}')
+                sleep(1)
+        elif 'restart' in str(message.topic):
+            restart_message = re.search(RESTART_TOPIC_REGEX, message.topic)
+            print(f'Entire message from MQTT: {restart_message}')
+            container_name = restart_message.group(1)
+            print(f'Extracted container name: {container_name}')
             running_event['status'] = 'restarting'
             running_event['container'] = container_name
             print(f'Restart received on {message.topic}, {container_name}')
