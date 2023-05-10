@@ -8,7 +8,7 @@ It is based entirely on skullydazed/docker2mqtt who wrote the original code.  I 
 
 Use docker to launch this. Please note that you must give it access to your docker socket, which is typically located at `/var/run/docker.sock`. A typical invocation is:
 
-    docker run --network mqtt -e MQTT_HOST=mosquitto -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/markxroberts/docker2mqtt
+    docker run --network mqtt -e MQTT_HOST=mosquitto -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/markxroberts/docker2mqtt:latest
 
 You can also use docker compose:
 ```yaml
@@ -46,27 +46,28 @@ You can use environment variables to control the behaviour.
 | `DOCKER2MQTT_HOSTNAME` | Container Hostname | The hostname of your docker host. This will be the container's hostname by default, you probably want to override it. |
 | `HOMEASSISTANT_PREFIX` | `homeassistant` | The prefix for Home Assistant discovery. Must be the same as `discovery_prefix` in your Home Assistant configuration. |
 | `HOMEASSISTANT_NAME_PREFIX` | `docker` | The friendly name and entity_id prefix for Home Assistant |
-| `MQTT_CLIENT_ID` | `mqtt2discord` | The client id to send to the MQTT broker. |
+| `MQTT_CLIENT_ID` | `docker2mqtt` | The client id to send to the MQTT broker. |
 | `MQTT_HOST` | `localhost` | The MQTT broker to connect to. |
 | `MQTT_PORT` | `1883` | The port on the broker to connect to. |
 | `MQTT_USER` | `` | The user to send to the MQTT broker. Leave unset to disable authentication. |
 | `MQTT_PASSWD` | `` | The password to send to the MQTT broker. Leave unset to disable authentication. |
 | `MQTT_TIMEOUT` | `30` | The timeout for the MQTT connection. |
-| `MQTT_TOPIC_PREFIX` | `ping` | The MQTT topic prefix. With the default data will be published to `ping/<hostname>`. |
+| `MQTT_TOPIC_PREFIX` | `docker` | The MQTT topic prefix. With the default data will be published to `ping/<hostname>`. |
 | `MQTT_QOS` | `1` | The MQTT QOS level |
 
 # Consuming The Data
 
-3 sensors and 1 switch are currently created:
+4 sensors and 1 switch are currently created in Home Assistant for each container, with each container defined as a device:
 
 ```
   binary_sensor.HOMEASSISTANT_NAME_PREFIX_<container>_state
-  sensor.HOMEASSISTANT_NAME_PREFIX_<container>_started
+  sensor.HOMEASSISTANT_NAME_PREFIX_<container>_event
+  sensor.HOMEASSISTANT_NAME_PREFIX_<container>_event_type
   sensor.HOMEASSISTANT_NAME_PREFIX_<container>_created
   switch.HOMEASSISTANT_NAME_PREFIX_<container>_switch
 ```
 
-Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,started,created]` using JSON serialization. It will be published whenever a change happens and takes the following form:
+Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,event,event_type,created]` using JSON serialization. Updates will be published whenever a change happens and take the following form:
 
 ```yaml
 {
@@ -74,7 +75,7 @@ Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,started
     'image': <Container Image>,
     'status': <'paused', 'running', or 'stopped'>,
     'state': <'on' or 'off'>,
-    'started': <Container started date>,
+    'event': <Container event date>,
     'created': <Container created date>,
     'ip': <Container IP address>
 }
