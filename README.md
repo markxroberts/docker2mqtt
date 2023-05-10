@@ -1,6 +1,6 @@
-# docker2mqtt - Deliver docker status information over MQTT and enables basic control of containers.
+# docker2mqtt - Deliver docker status information and basic control over MQTT.
 
-This program uses `docker events` to watch for changes in your docker containers, and delivers current status to MQTT. It will also publish Home Assistant MQTT Discovery messages so that sensors and switches automatically show up in Home Assistant.  Switch events are published via `docker start` and `docker stop`.
+This program uses `docker events` to watch for changes in your docker containers, and delivers current status to MQTT. It will also publish Home Assistant MQTT Discovery messages so that sensors and switches automatically show up in Home Assistant.  Switch events are published via `docker start`, `docker stop` and `docker restart`.
 
 It is based entirely on skullydazed/docker2mqtt who wrote the original code.  I have adapted for my purposes.
 
@@ -52,7 +52,7 @@ You can use environment variables to control the behaviour.
 | `MQTT_USER` | `` | The user to send to the MQTT broker. Leave unset to disable authentication. |
 | `MQTT_PASSWD` | `` | The password to send to the MQTT broker. Leave unset to disable authentication. |
 | `MQTT_TIMEOUT` | `30` | The timeout for the MQTT connection. |
-| `MQTT_TOPIC_PREFIX` | `docker` | The MQTT topic prefix. With the default data will be published to `ping/<hostname>`. |
+| `MQTT_TOPIC_PREFIX` | `docker` | The MQTT topic prefix. With the default data will be published to `docker/<Container_Name>`. |
 | `MQTT_QOS` | `1` | The MQTT QOS level |
 
 # Consuming The Data
@@ -65,6 +65,7 @@ You can use environment variables to control the behaviour.
   sensor.HOMEASSISTANT_NAME_PREFIX_<container>_event_type
   sensor.HOMEASSISTANT_NAME_PREFIX_<container>_created
   switch.HOMEASSISTANT_NAME_PREFIX_<container>_switch
+  button.HOMEASSISTANT_NAME_PREFIX_<container>_restart
 ```
 
 Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,event,event_type,created]` using JSON serialization. Updates will be published whenever a change happens and take the following form:
@@ -80,12 +81,13 @@ Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,event,e
     'ip': <Container IP address>
 }
 ```
-The switch topic monitored by the application is:
+The switch and button topics monitored by the application are:
 ```
   <MQTT_TOPIC_PREFIX>/<container>_switch/set
+  <MQTT_TOPIC_PREFIX>/<container>_restart/set
 ```
 
 # Home Assistant
 
-After you start the service, sensor and switches should show up in Home Assistant with a couple of minutes. Metadata about the container will be available as attributes in the sensors, which you can then expose using template sensors.  Beware of using the switches for Home Assistant and docker2mqtt.  You will be able to turn them off, but won't be able to turn them back on!
+After you start the service, sensors, switches and buttons should show up in Home Assistant with a couple of minutes depending on the number of containers that you have.  Beware of using the switches for Home Assistant and docker2mqtt.  You will be able to turn them off, but won't be able to turn them back on!  A later release may fix this.
 
