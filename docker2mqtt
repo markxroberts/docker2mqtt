@@ -31,6 +31,7 @@ DISCOVERY_TOPIC_EVENT = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}
 DISCOVERY_TOPIC_EVENT_TYPE = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}_event_type/config'
 DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}_created/config'
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
+DISCOVERY_TOPIC_RESTART = f'{HOMEASSISTANT_PREFIX}/button/{MQTT_TOPIC_PREFIX}/{{}}_restart/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause')
 SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
@@ -45,6 +46,7 @@ docker_ps_cmd = ['docker', 'ps', '-a', '--format', '{{json .}}']
 docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
 docker_start_cmd = ['docker', 'start']
 docker_stop_cmd = ['docker', 'stop']
+docker_restart_cmd = ['docker', 'restart']
 invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 ha_online = False
 initialized = False
@@ -153,6 +155,24 @@ def register_containers():
                 mqtt_send(mqtt_send_topic_switch, json.dumps(attributes), retain=True)
                 mqtt_receive(mqtt_receive_topic_switch)
 
+                # Discover restart button
+                registration_topic_restart = DISCOVERY_TOPIC_RESTART.format(invalid_ha_topic_chars.sub('_', docker))
+                registration_packet_restart = {
+                    'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker} restart',
+                    'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_restart}',
+                    'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {docker}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+                    'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
+                    'payload_available': 'online',
+                    'payload_not_available': 'offline',
+                    'command_topic': f'{MQTT_TOPIC_PREFIX}/{docker}_restart/set',
+                    'payload_press': 'restart',
+                    'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{docker}_press'
+                }
+                mqtt_receive_topic_restart = f'{MQTT_TOPIC_PREFIX}/{docker}_restart/set'
+                print(f'Receive topic defined: {mqtt_receive_topic_restart}')
+                mqtt_send(registration_topic_restart, json.dumps(registration_packet_restart, default=lambda o: o.__dict__, indent=4), retain=True)
+                mqtt_receive(mqtt_receive_topic_restart)
+
                 # Discover 'event type' sensor
                 registration_topic_event_type = DISCOVERY_TOPIC_EVENT_TYPE.format(invalid_ha_topic_chars.sub('_', docker))
                 registration_packet_event_type = {
@@ -233,12 +253,26 @@ def readline_thread():
                 container_id = remove_non_json.group(2)
                 print(f'Message separated')
                 docker_events.put(remaining_json)
-                if running_event[0]['status'] == 'start' and running_event[0]['container'] == container_id:
+                if running_event[0]['state'] == 'on' and running_event[0]['container'] == container_id:
                     status_update = {
-                        'state': f'{running_event[0]["status"]}'
+                        'state': f'{running_event[0]["state"]}'
                     }
                     mqtt_send_status_update_switch = f'{MQTT_TOPIC_PREFIX}/{running_event["container"]}_switch'
                     mqtt_send(mqtt_send_status_update_switch, json.dumps(status_update), retain=True)
+                    running_event.clear()
+                elif running_event[0]['state'] == 'off' and running_event[0]['container'] == container_id:
+                    status_update = {
+                        'state': f'{running_event[0]["state"]}'
+                    }
+                    mqtt_send_status_update_switch = f'{MQTT_TOPIC_PREFIX}/{running_event["container"]}_switch'
+                    mqtt_send(mqtt_send_status_update_switch, json.dumps(status_update), retain=True)
+                    running_event.clear()
+                elif running_event[0]['status'] == 'restarting' and running_event[0]['container'] == container_id:
+                    status_update = {
+                        'state': f'{running_event[0]["status"]}'
+                    }
+                    mqtt_send_status_update_button = f'{MQTT_TOPIC_PREFIX}/{running_event["container"]}_restart'
+                    mqtt_send(mqtt_send_status_update_button, json.dumps(status_update), retain=True)
                     running_event.clear()
 
 def process_status_message(event, container):
@@ -371,7 +405,7 @@ def message_received(client, userdata, message):
         container_name = switch_message.group(1)
         print(f'Extracted container name: {container_name}')
         if 'on' in str(message.payload):
-            running_event['status'] = 'on'
+            running_event['state'] = 'on'
             running_event['container'] = container_name
             print(f'Switch on received on {message.topic}, {container_name}')
             docker_start_cmd.append(container_name)
@@ -380,13 +414,22 @@ def message_received(client, userdata, message):
             print(f'Start command sent to docker for {container_name}')
             sleep(1)
         elif 'off' in str(message.payload):
-            running_event['status'] = 'on'
+            running_event['state'] = 'on'
             running_event['container'] = container_name
             print(f'Switch off received on {message.topic}, {container_name}')
             docker_stop_cmd.append(container_name)
             run(docker_stop_cmd)
             docker_stop_cmd.remove(container_name)
             print(f'Stop command sent to docker for {container_name}')
+            sleep(1)
+        elif 'restart' in str(message.payload):
+            running_event['status'] = 'restarting'
+            running_event['container'] = container_name
+            print(f'Restart received on {message.topic}, {container_name}')
+            docker_restart_cmd.append(container_name)
+            run(docker_restart_cmd)
+            docker_restart_cmd.remove(container_name)
+            print(f'Restart command sent to docker for {container_name}')
             sleep(1)
 
 def on_log(client, userdata, level, string):
