@@ -304,12 +304,12 @@ def status_mapping(state):
         status = 'running'
     elif state == 'off':
         status = 'stopped'
-    elif state == 'restarting':
-        status = state
+    elif state == 'restart':
+        status = 'restarting'
     return status
 
 def state_mapping(state):
-    if state == 'restarting':
+    if state == 'restart':
         state = 'on'
     else:
         state = state
@@ -330,9 +330,9 @@ def readline_thread():
                 print(f'Message separated')
                 docker_events.put(remaining_json)
                 now = datetime.now()
-                if container_id in running_event and running_event[container_id]['state'] in ['on','off','restarting']:
-                    state = state_mapping([container_id]['state'])
-                    status = status_mapping([container_id]['state'])
+                if container_id in running_event and running_event[container_id]['state'] in ['on','off','restart']:
+                    state = state_mapping(running_event[container_id]['state'])
+                    status = status_mapping(running_event[container_id]['state'])
                     status_update = {
                         'state': state,
                         'status': status,
