@@ -106,10 +106,12 @@ def message_received(client, userdata, message):
             print(f'Docker2mqtt autodiscovery not complete.  Initiating...')
             initialize_containers_with_ha()
         elif initialized == True:
-            print(f'Docker2mqtt autodiscovery complete.  Home Assistant back online.')
+            initialized == False
+            print(f'Home Assistant back online.  Reinitiating autodiscovery')
+            initialize_containers_with_ha()
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
-        print(f'home assistant is offline')
+        print(f'Home Assistant is offline')
         sleep(4)
     else:
         print(f'{message.topic}')
