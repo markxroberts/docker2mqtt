@@ -1,4 +1,4 @@
-# docker2mqtt - Deliver docker status information and basic control over MQTT.
+# docker2mqtt - Deliver docker status information and basic control over MQTT
 
 This program uses `docker events` to watch for changes in your docker containers, and delivers current status to MQTT. It will also publish Home Assistant MQTT Discovery messages so that sensors and switches automatically show up in Home Assistant.  Switch events are published via `docker start`, `docker stop` and `docker restart`.
 
@@ -57,7 +57,7 @@ You can use environment variables to control the behaviour.
 
 # Consuming The Data
 
-4 sensors and 1 switch are currently created in Home Assistant for each container, with each container defined as a device:
+4 sensors, 1 switch and 1 button are currently created in Home Assistant for each container, with each container defined as a device:
 
 ```
   binary_sensor.HOMEASSISTANT_NAME_PREFIX_<container>_state
@@ -89,5 +89,5 @@ The switch and button topics monitored by the application are:
 
 # Home Assistant
 
-After you start the service, sensors, switches and buttons should show up in Home Assistant with a couple of minutes depending on the number of containers that you have.  Beware of using the switches for Home Assistant and docker2mqtt.  You will be able to turn them off, but won't be able to turn them back on!  A later release may fix this.
+After you start the service, sensors, switches and buttons should show up in Home Assistant within a couple of minutes depending on the number of containers that you have.  Beware of using the switches for Home Assistant and docker2mqtt.  You will be able to turn them off, but won't be able to turn them back on!  A later release may fix this.
 
