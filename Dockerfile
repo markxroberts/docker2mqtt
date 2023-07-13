@@ -1,4 +1,4 @@
-FROM debian:stable
+FROM debian:oldstable
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
