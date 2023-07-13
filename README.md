@@ -1,6 +1,7 @@
 # docker2mqtt - Deliver docker status information and basic control over MQTT
 
 ![Maintenance](https://img.shields.io/maintenance/yes/2023.svg)
+[![Docker Pulls](https://img.shields.io/docker/pulls/markxroberts/docker2mqtt)](https://hub.docker.com/r/markxroberts/docker2mqtt)
 [![buy me a coffee](https://img.shields.io/badge/If%20you%20like%20it-Buy%20me%20a%20coffee-orange.svg)](https://www.buymeacoffee.com/markxr)
 
 This program uses `docker events` to watch for changes in your docker containers, and delivers current status to MQTT. It will also publish Home Assistant MQTT Discovery messages so that sensors and switches automatically show up in Home Assistant.  Switch events are published via `docker start`, `docker stop` and `docker restart`.
