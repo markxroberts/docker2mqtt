@@ -92,5 +92,7 @@ The switch and button topics monitored by the application are:
 
 # Home Assistant
 
-After you start the service, sensors, switches and buttons should show up in Home Assistant within a couple of minutes depending on the number of containers that you have.  Beware of using the switches for Home Assistant and docker2mqtt.  You will be able to turn them off, but won't be able to turn them back on!  A later release may fix this.
+After you start the service, sensors, switches and buttons should show up in Home Assistant within a couple of minutes depending on the number of containers that you have.  Switches will not be published for Home Assistant or docker2mqtt provided that the container names contain `Home` and `Assistant` or `docker2mqtt`.  These are case insensitive.
+
+Beware that 'devices' may remain present within Home Assistant if the delete or rename process doesn't complete.
 

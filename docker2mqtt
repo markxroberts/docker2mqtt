@@ -197,7 +197,7 @@ def register_container(new_container):
     mqtt_send(mqtt_send_topic_status, json.dumps(attributes), retain=True)
 
     # Discover switch
-    if not (re.search('home', new_container, re.IGNORECASE) and re.search('assistant', new_container, re.IGNORECASE)) or re.search('docker2mqtt', new_container, re.IGNORECASE):
+    if not ((re.search('home', new_container, re.IGNORECASE) and re.search('assistant', new_container, re.IGNORECASE)) or re.search('docker2mqtt', new_container, re.IGNORECASE)):
         registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', new_container))
         registration_packet_switch = {
             'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} switch',
