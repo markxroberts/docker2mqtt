@@ -196,33 +196,6 @@ def register_container(new_container):
     mqtt_send(registration_topic_status, json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_status, json.dumps(attributes), retain=True)
 
-    # Discover switch
-    if not ((re.search('home', new_container, re.IGNORECASE) and re.search('assistant', new_container, re.IGNORECASE)) or re.search('docker2mqtt', new_container, re.IGNORECASE)):
-        registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', new_container))
-        registration_packet_switch = {
-            'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} switch',
-            'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_switch}',
-            'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
-            'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
-            'payload_available': 'online',
-            'payload_not_available': 'offline',
-            'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_status',
-            'command_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_switch/set',
-            'value_template': '{{ value_json.state }}',
-            'payload_on': 'on',
-            'payload_off': 'off',
-            'state_on': 'on',
-            'state_off': 'off',
-            'optimistic': 'false',
-            'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_switch'
-        }
-        mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{new_container}_switch'
-        mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{new_container}_switch/set'
-        print(f'Receive topic defined: {mqtt_receive_topic_switch}')
-        mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
-        mqtt_send(mqtt_send_topic_switch, json.dumps(attributes), retain=True)
-        mqtt_receive(mqtt_receive_topic_switch)
-
     # Discover restart button
     registration_topic_restart = DISCOVERY_TOPIC_RESTART.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_restart = {
@@ -300,6 +273,33 @@ def register_container(new_container):
     mqtt_send_topic_created = f'{MQTT_TOPIC_PREFIX}/{new_container}_created'
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_send(mqtt_send_topic_created, json.dumps(attributes), retain=True)
+
+    # Discover switch
+    if not ((re.search('home', new_container, re.IGNORECASE) and re.search('assistant', new_container, re.IGNORECASE)) or re.search('docker2mqtt', new_container, re.IGNORECASE)):
+        registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', new_container))
+        registration_packet_switch = {
+            'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} switch',
+            'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_switch}',
+            'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
+            'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
+            'payload_available': 'online',
+            'payload_not_available': 'offline',
+            'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_status',
+            'command_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_switch/set',
+            'value_template': '{{ value_json.state }}',
+            'payload_on': 'on',
+            'payload_off': 'off',
+            'state_on': 'on',
+            'state_off': 'off',
+            'optimistic': 'false',
+            'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_switch'
+        }
+        mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{new_container}_switch'
+        mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{new_container}_switch/set'
+        print(f'Receive topic defined: {mqtt_receive_topic_switch}')
+        mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
+        mqtt_send(mqtt_send_topic_switch, json.dumps(attributes), retain=True)
+        mqtt_receive(mqtt_receive_topic_switch)
 
 def status_mapping(status):
     if status in ['starting','restarting']:
