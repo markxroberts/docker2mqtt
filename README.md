@@ -87,8 +87,8 @@ Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,event,e
 ```
 The switch and button topics monitored by the application are:
 ```
-  <MQTT_TOPIC_PREFIX>/<container>_switch/set
-  <MQTT_TOPIC_PREFIX>/<container>_restart/set
+  <MQTT_TOPIC_PREFIX>/<container>/switch
+  <MQTT_TOPIC_PREFIX>/<container>/restart
 ```
 
 # Home Assistant
