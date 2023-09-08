@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Listens to `docker system events` and sents container stop/start events to mqtt.
+"""Listens to `docker system events` and sends container stop/start events to mqtt.
 """
 import atexit
 import json
@@ -68,7 +68,7 @@ def mqtt_connect():
     client.username_pw_set(username=MQTT_USER, password=MQTT_PASSWD)
     client.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     client.on_message = message_received
-    client.on_unsubscribe = on_subscribe
+    client.on_subscribe = on_subscribe
     client.on_log = on_log
     client.on_connect = on_connect
     client.loop_start()
@@ -179,7 +179,7 @@ def register_container(new_container):
     image = known_containers[new_container]['image']
     registration_topic_status = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_status = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} state',
+        'name': 'state',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_status}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
@@ -200,7 +200,7 @@ def register_container(new_container):
     if not ((re.search('home', new_container, re.IGNORECASE) and re.search('assistant', new_container, re.IGNORECASE)) or re.search('docker2mqtt', new_container, re.IGNORECASE)):
         registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', new_container))
         registration_packet_switch = {
-            'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} switch',
+            'name': 'switch',
             'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_switch}',
             'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
             'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
@@ -224,7 +224,7 @@ def register_container(new_container):
     # Discover restart button
     registration_topic_restart = DISCOVERY_TOPIC_RESTART.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_restart = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} restart',
+        'name': 'restart',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_restart}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
@@ -242,7 +242,7 @@ def register_container(new_container):
     # Discover 'event type' sensor
     registration_topic_event_type = DISCOVERY_TOPIC_EVENT_TYPE.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_event_type = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} event type',
+        'name': 'event type',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_event_type}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
@@ -260,7 +260,7 @@ def register_container(new_container):
     # Discover 'event date' sensor
     registration_topic_event = DISCOVERY_TOPIC_EVENT.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_event = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} event',
+        'name': 'event',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_event}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
@@ -278,7 +278,7 @@ def register_container(new_container):
     # Discover 'created' sensor
     registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_created = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} created',
+        'name': 'created',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_created}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
@@ -435,7 +435,7 @@ def run_docker_ps():
         print(container_details)
         docker_register_inspect.remove(container_status['Names'])
         created = container_details['Created']
-        ip ={}
+        ip = {}
         for adapter in container_details['NetworkSettings']['Networks']:
             ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
             ipaddress = f'{ip[adapter]}'
