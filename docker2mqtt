@@ -35,7 +35,7 @@ DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}
 DISCOVERY_TOPIC_RESTART = f'{HOMEASSISTANT_PREFIX}/button/{MQTT_TOPIC_PREFIX}/{{}}_restart/config'
 WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause', 'stop')
-SWITCH_TOPIC_REGEX = r'^.*\/(.*)\/switch\/set$'
+SWITCH_TOPIC_REGEX = r'^.*\/(.*)\/switch$'
 RESTART_TOPIC_REGEX = r'^.*\/(.*)\/restart$'
 JSON_ONLY_REGEX = r'^(\{.*\})(\.*)$'
 
