@@ -436,6 +436,7 @@ def run_docker_ps():
         docker_register_inspect.remove(container_status['Names'])
         created = container_details['Created']
         ip = {}
+        now = datetime.now()
         for adapter in container_details['NetworkSettings']['Networks']:
             ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
             ipaddress = f'{ip[adapter]}'
@@ -443,7 +444,7 @@ def run_docker_ps():
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
             state_str = 'off'
-            event = container_details['State']['FinishedAt']
+            event = now
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'           
@@ -451,7 +452,7 @@ def run_docker_ps():
         else:
             status_str = 'stopped'
             state_str = 'off'
-            event = container_details['State']['FinishedAt']
+            event = now
         
         print(f'Container details for {container_status["Names"]} added to registry')
         known_containers[container_status['Names']] = {
