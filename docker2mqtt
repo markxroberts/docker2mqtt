@@ -9,7 +9,7 @@ from os import environ
 from socket import gethostname
 from subprocess import run, Popen, PIPE
 from threading import Thread
-from time import sleep, time
+from time import sleep, time, localtime
 from datetime import datetime
 
 import paho.mqtt.client as mqtt
@@ -328,6 +328,7 @@ def readline_thread():
                     del(known_containers[container_id])
 
 def process_status_message(event, container):
+    stoptime = localtime(event['time'])
     if event['status'] in UP_EVENTS:
         docker_event_inspect = docker_inspect_cmd
         docker_event_inspect.append(container)
@@ -364,21 +365,21 @@ def process_status_message(event, container):
             pending_destroy_operations[container] = time()
             known_containers[container]['status'] = 'destroyed'
             known_containers[container]['state'] = 'off'
-            known_containers[container]['event'] = container_event_details['State']['FinishedAt']
+            known_containers[container]['event'] = stoptime
 
         elif event['status'] == 'die':
             print(f'Container {container} has stopped.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = container_event_details['Created']
-            known_containers[container]['event'] = container_event_details['State']['FinishedAt']
+            known_containers[container]['event'] = stoptime
 
         elif event['status'] == 'pause':
             print(f'Container {container} has paused.')
             known_containers[container]['status'] = 'paused'
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = container_event_details['Created']
-            known_containers[container]['event'] = container_event_details['State']['FinishedAt']
+            known_containers[container]['event'] = stoptime
 
         elif event['status'] == 'rename':
             old_name = event['Actor']['Attributes']['oldName']
@@ -444,7 +445,7 @@ def run_docker_ps():
         if 'Paused' in container_status['Status']:
             status_str = 'paused'
             state_str = 'off'
-            event = now
+            event = container_details['State']['FinishedAt']
         elif 'Up' in container_status['Status']:
             status_str = 'running'
             state_str = 'on'           
@@ -452,7 +453,7 @@ def run_docker_ps():
         else:
             status_str = 'stopped'
             state_str = 'off'
-            event = now
+            event = container_details['State']['FinishedAt']
         
         print(f'Container details for {container_status["Names"]} added to registry')
         known_containers[container_status['Names']] = {
