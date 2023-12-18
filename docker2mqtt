@@ -9,7 +9,7 @@ from os import environ
 from socket import gethostname
 from subprocess import run, Popen, PIPE
 from threading import Thread
-from time import sleep, time, localtime
+from time import sleep, time
 from datetime import datetime
 
 import paho.mqtt.client as mqtt
@@ -314,7 +314,7 @@ def readline_thread():
                 container_id = remove_non_json.group(2)
                 print(f'Message separated')
                 docker_events.put(remaining_json)
-                now = datetime.now()
+                now = (datetime.now()).isoformat()
                 if container_id in known_containers and known_containers[container_id]['status'] in ['running','stopped','restarting']:
                     state = status_mapping(known_containers[container_id]['status'])
                     new_status = known_containers[container_id]['status']
@@ -328,7 +328,7 @@ def readline_thread():
                     del(known_containers[container_id])
 
 def process_status_message(event, container):
-    stoptime = localtime(event['time'])
+    stoptime = datetime.now().isoformat()
     if event['status'] in UP_EVENTS:
         docker_event_inspect = docker_inspect_cmd
         docker_event_inspect.append(container)
@@ -437,7 +437,7 @@ def run_docker_ps():
         docker_register_inspect.remove(container_status['Names'])
         created = container_details['Created']
         ip = {}
-        now = datetime.now()
+        now = datetime.now().isoformat()
         for adapter in container_details['NetworkSettings']['Networks']:
             ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
             ipaddress = f'{ip[adapter]}'
