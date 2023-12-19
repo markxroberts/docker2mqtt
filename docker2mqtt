@@ -517,7 +517,7 @@ def docker_events_process():
             continue
 
 if __name__ == '__main__':
-    logformat = '%(asctime)s %(level)s %(message)s'
+    logformat = '%(asctime)s %(levelname)s %(message)s'
     logging.basicConfig(format=logformat,level=LOGGING)
     run_docker_ps()
     mqtt_connect()
