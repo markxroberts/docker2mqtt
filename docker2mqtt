@@ -516,7 +516,7 @@ def docker_events_process():
             continue
 
 if __name__ == '__main__':
-    logging.basicConfig(level=loglevel)
+    logging.basicConfig(level=LOGGING)
     run_docker_ps()
     mqtt_connect()
     docker_events_process()
