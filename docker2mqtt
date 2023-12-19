@@ -366,33 +366,21 @@ def process_status_message(event, container):
             pending_destroy_operations[container] = time()
             known_containers[container]['status'] = 'destroyed'
             known_containers[container]['state'] = 'off'
-<<<<<<< HEAD
-            known_containers[container]['event'] = now
-=======
             known_containers[container]['event'] = stoptime
->>>>>>> 7de667f42187ab6f3235068d006c01f337f00126
 
         elif event['status'] == 'die':
             print(f'Container {container} has stopped.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = container_event_details['Created']
-<<<<<<< HEAD
-            known_containers[container]['event'] = now
-=======
             known_containers[container]['event'] = stoptime
->>>>>>> 7de667f42187ab6f3235068d006c01f337f00126
 
         elif event['status'] == 'pause':
             print(f'Container {container} has paused.')
             known_containers[container]['status'] = 'paused'
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = container_event_details['Created']
-<<<<<<< HEAD
-            known_containers[container]['event'] = now
-=======
             known_containers[container]['event'] = stoptime
->>>>>>> 7de667f42187ab6f3235068d006c01f337f00126
 
         elif event['status'] == 'rename':
             old_name = event['Actor']['Attributes']['oldName']
