@@ -10,7 +10,7 @@ from os import environ
 from socket import gethostname
 from subprocess import run, Popen, PIPE
 from threading import Thread
-from time import sleep, time, localtime
+from time import sleep, time
 from datetime import datetime
 
 import paho.mqtt.client as mqtt
@@ -148,7 +148,7 @@ def message_received(client, userdata, message):
             sleep(1)
 
 def on_log(client, userdata, level, string):
-    print(string)
+    logging.debug(f'[MQTT - D2M] message received {string}')
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -334,7 +334,7 @@ def readline_thread():
                     del(known_containers[container_id])
 
 def process_status_message(event, container):
-    stoptime = localtime(event['time'])
+    stoptime = (datetime.fromtimestamp(event['time'])).isoformat()
     if event['status'] in UP_EVENTS:
         docker_event_inspect = docker_inspect_cmd
         docker_event_inspect.append(container)
@@ -506,9 +506,9 @@ def docker_events_process():
  
         event = json.loads(line)
         if event['status'] not in WATCHED_EVENTS:
+            logging.info(f'[Docker -> D2M] Latest docker event (unwatched event): {event["status"]}')
             continue
-        logging.info(f'[Docker -> D2M] Latest docker event (unwatched event): {event}')
-
+            
         container = event['Actor']['Attributes']['name']
 
         try:
