@@ -34,7 +34,7 @@ DISCOVERY_TOPIC_EVENT_TYPE = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}
 DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}_created/config'
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 DISCOVERY_TOPIC_RESTART = f'{HOMEASSISTANT_PREFIX}/button/{MQTT_TOPIC_PREFIX}/{{}}_restart/config'
-WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
+WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause', 'kill')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause', 'stop')
 SWITCH_TOPIC_REGEX = r'^.*\/(.*)\/switch$'
 RESTART_TOPIC_REGEX = r'^.*\/(.*)\/restart$'
@@ -54,7 +54,6 @@ ha_online = False
 initialized = False
 initializing = False
 client = mqtt.Client(f'{MQTT_CLIENT_ID}')
-loglevel = "logging."+LOGGING
 
 @atexit.register
 def mqtt_disconnect():
@@ -506,7 +505,7 @@ def docker_events_process():
  
         event = json.loads(line)
         if event['status'] not in WATCHED_EVENTS:
-            logging.info(f'[Docker -> D2M] Latest docker event (unwatched event): {event["status"]}')
+            logging.debug(f'[Docker -> D2M] Latest docker event (unwatched event): {event["status"]}')
             continue
             
         container = event['Actor']['Attributes']['name']
