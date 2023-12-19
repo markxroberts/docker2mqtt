@@ -344,6 +344,7 @@ def process_status_message(event, container):
         for adapter in container_event_details['NetworkSettings']['Networks']:
             ip[adapter] = container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
             ipaddress = f'{ip[adapter]}'
+        logging.debug(f'Event details: {event}')
 
     if event['status'] in WATCHED_EVENTS:
         if event['status'] == 'create':
