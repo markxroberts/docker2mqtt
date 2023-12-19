@@ -62,7 +62,7 @@ def mqtt_disconnect():
     """
     client.publish(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     client.disconnect()
-    logging.warn('MQTT client disconnected')
+    logging.warning('MQTT client disconnected')
     sleep(1)
     client.loop_stop()
 
@@ -157,7 +157,7 @@ def on_connect(client, userdata, flags, rc):
         mqtt_receive('homeassistant/status')
         sleep(10)
     else:
-        logging.warn('No connection established to broker')
+        logging.warning('No connection established to broker')
 
 def initialize_containers_with_ha():
     global initializing
