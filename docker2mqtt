@@ -333,7 +333,7 @@ def readline_thread():
                     del(known_containers[container_id])
 
 def process_status_message(event, container):
-    stoptime = (datetime.fromtimestamp(event['time'])).strftime("%W-%m-%d %H:%M:%S +%z UTC")
+    stoptime = (datetime.fromtimestamp(event['time'])).strftime("%Y-%m-%d %H:%M:%S +0000 UTC")
     if event['status'] in UP_EVENTS:
         docker_event_inspect = docker_inspect_cmd
         docker_event_inspect.append(container)
