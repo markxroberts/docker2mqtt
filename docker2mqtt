@@ -375,7 +375,7 @@ def process_status_message(event, container):
             known_containers[container]['state'] = 'off'
             known_containers[container]['event'] = stoptime
 
-        elif event['status'] == 'die':
+        elif event['status'] in ['die','stop']:
             logging.info(f'[Docker -> D2M] Container {container} has stopped at {stoptime}.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
@@ -430,6 +430,7 @@ def process_status_message(event, container):
             known_containers[container]['ip'] = ipaddress
 
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}', json.dumps(known_containers[container]), retain=True)
+        logging.debug(f'Updated container details: {known_containers[container]}')
 
 def run_docker_ps():
     # Register containers with HA
