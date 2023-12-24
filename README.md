@@ -45,7 +45,7 @@ You can use environment variables to control the behaviour.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DEBUG` | | Set to `1` to enable additional debug logging. |
+| `LOGGING` | INFO | Options DEBUG, WARNING |
 | `DESTROYED_CONTAINER_TTL` | 86400 | How long, in seconds, before destroyed containers are removed from Home Assistant. Containers won't be removed if the service is restarted before the TTL expires. |
 | `DOCKER2MQTT_HOSTNAME` | Container Hostname | The hostname of your docker host. This will be the container's hostname by default, you probably want to override it. |
 | `HOMEASSISTANT_PREFIX` | `homeassistant` | The prefix for Home Assistant discovery. Must be the same as `discovery_prefix` in your Home Assistant configuration. |
@@ -87,8 +87,8 @@ Data is published to the topics `<MQTT_TOPIC_PREFIX>/<container>_[status,event,e
 ```
 The switch and button topics monitored by the application are:
 ```
-  <MQTT_TOPIC_PREFIX>/<container>_switch/set
-  <MQTT_TOPIC_PREFIX>/<container>_restart/set
+  <MQTT_TOPIC_PREFIX>/<container>/switch
+  <MQTT_TOPIC_PREFIX>/<container>/restart
 ```
 
 # Home Assistant

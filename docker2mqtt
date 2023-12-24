@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Listens to `docker system events` and sents container stop/start events to mqtt.
+"""Listens to `docker system events` and sends container stop/start events to mqtt.
 """
 import atexit
 import json
 import queue
 import re
+import logging
 from os import environ
 from socket import gethostname
 from subprocess import run, Popen, PIPE
@@ -14,7 +15,7 @@ from datetime import datetime
 
 import paho.mqtt.client as mqtt
 
-DEBUG = environ.get('DEBUG', '1') == '1'
+LOGGING = environ.get('LOGGING', 'INFO')
 DESTROYED_CONTAINER_TTL = int(environ.get('DESTROYED_CONTAINER_TTL', 24*60*60))
 HOMEASSISTANT_PREFIX = environ.get('HOMEASSISTANT_PREFIX', 'homeassistant')
 HOMEASSISTANT_NAME_PREFIX = environ.get('HOMEASSISTANT_NAME_PREFIX', 'docker')
@@ -33,10 +34,10 @@ DISCOVERY_TOPIC_EVENT_TYPE = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}
 DISCOVERY_TOPIC_CREATED = f'{HOMEASSISTANT_PREFIX}/sensor/{MQTT_TOPIC_PREFIX}/{{}}_created/config'
 DISCOVERY_TOPIC_SWITCH = f'{HOMEASSISTANT_PREFIX}/switch/{MQTT_TOPIC_PREFIX}/{{}}_switch/config'
 DISCOVERY_TOPIC_RESTART = f'{HOMEASSISTANT_PREFIX}/button/{MQTT_TOPIC_PREFIX}/{{}}_restart/config'
-WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause')
+WATCHED_EVENTS = ('create', 'destroy', 'die', 'pause', 'rename', 'start', 'stop', 'unpause', 'kill')
 UP_EVENTS = ('create', 'rename', 'start', 'unpause', 'stop')
-SWITCH_TOPIC_REGEX = r'^.*\/(.*)\_switch\/set$'
-RESTART_TOPIC_REGEX = r'^.*\/(.*)\_restart\/set$'
+SWITCH_TOPIC_REGEX = r'^.*\/(.*)\/switch$'
+RESTART_TOPIC_REGEX = r'^.*\/(.*)\/restart$'
 JSON_ONLY_REGEX = r'^(\{.*\})(\.*)$'
 
 docker_events = queue.Queue()
@@ -60,7 +61,7 @@ def mqtt_disconnect():
     """
     client.publish(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     client.disconnect()
-    print('MQTT client disconnected')
+    logging.warning('MQTT client disconnected')
     sleep(1)
     client.loop_stop()
 
@@ -68,107 +69,105 @@ def mqtt_connect():
     client.username_pw_set(username=MQTT_USER, password=MQTT_PASSWD)
     client.will_set(f'{MQTT_TOPIC_PREFIX}/status', 'offline', qos=MQTT_QOS, retain=True)
     client.on_message = message_received
-    client.on_unsubscribe = on_subscribe
+    client.on_subscribe = on_subscribe
     client.on_log = on_log
     client.on_connect = on_connect
     client.loop_start()
     client.connect(MQTT_HOST, MQTT_PORT, MQTT_TIMEOUT)
     sleep(4)
-    print('MQTT connection initiated')
+    logging.info(f'[D2M] MQTT connection initiated')
 
 def mqtt_send(send_topic, payload, retain=False):
     try:
-        if DEBUG:
-            print(f'Sending to MQTT: {send_topic}: {payload}')
+        logging.debug(f'[D2M -> MQTT] Sending to MQTT: {send_topic}: {payload}')
         client.publish(send_topic, payload=payload, qos=MQTT_QOS, retain=retain)
     except Exception as e:
-        print(f'MQTT Publish Failed: {e}')
+        logging.debug(f'[D2M] MQTT Publish Failed: {e}')
 
 def mqtt_receive(receive_topic):
     try:
-        if DEBUG:
-            print(f'Subscribing to MQTT: {receive_topic}')
+        logging.debug(f'[D2M -> MQTT] Subscribing to MQTT: {receive_topic}')
         client.subscribe(receive_topic, qos=MQTT_QOS)
-        print (f'MQTT topic subscribed: {receive_topic}')
+        logging.debug (f'[D2M -> MQTT] MQTT topic subscribed: {receive_topic}')
     except Exception as e:
-        print(f'MQTT Subscribe Failed: {e}')
+        logging.error(f'[D2M] MQTT Subscribe Failed: {e}')
         
 def on_subscribe(mosq, obj, mid, granted_qos):
-    print("Subscribed acknowledgment: " + str(mid) + " " + str(granted_qos))
+    logging.debug("[MQTT -> D2M] Subscribed acknowledgment: " + str(mid) + " " + str(granted_qos))
 
 def message_received(client, userdata, message):
     global ha_online
-    print(f'Message received')
+    logging.info(f'[MQTT -> D2M] Message received')
     if "homeassistant/status" in message.topic and "online" in str(message.payload):
         ha_online = True
-        print(f'Home assistant is online.  Checking if docker2mqtt initialized.')
+        logging.info(f'[MQTT -> D2M] Home assistant is online.  Checking if docker2mqtt initialized.')
         if initialized == False and initializing == False:
-            print(f'Docker2mqtt autodiscovery not complete.  Initiating...')
+            logging.info(f'[D2M] Docker2mqtt autodiscovery not complete.  Initiating...')
             initialize_containers_with_ha()
         elif initialized == True:
             initialized == False
-            print(f'Home Assistant back online.  Reinitiating autodiscovery')
+            logging.info(f'[D2M] Home Assistant back online.  Reinitiating autodiscovery')
             initialize_containers_with_ha()
     elif "homeassistant/status" in message.topic and "offline" in str(message.payload):
         ha_online = False
-        print(f'Home Assistant is offline')
+        logging.info(f'[MQTT -> D2M] Home Assistant is offline')
         sleep(4)
     else:
-        print(f'{message.topic}')
+        logging.debug(f'{message.topic}')
         if 'switch' in str(message.topic):
             switch_message = re.search(SWITCH_TOPIC_REGEX, message.topic)
             container_name = switch_message.group(1)
-            print(f'Extracted container name: {container_name}')
+            logging.debug(f'[D2M] Extracted container name: {container_name}')
             if 'on' in str(message.payload):
                 known_containers[container_name]['status'] = 'starting'
-                print(f'Switch on received on {message.topic}, {container_name}')
+                logging.info(f'[MQTT -> D2M] Switch on received on {message.topic}, {container_name}')
                 docker_start_cmd.append(container_name)
                 run(docker_start_cmd)
                 docker_start_cmd.remove(container_name)
-                print(f'Start command sent to docker for {container_name}')
+                logging.info(f'[D2M -> Docker] Start command sent to docker for {container_name}')
                 sleep(1)
             elif 'off' in str(message.payload):
                 known_containers[container_name]['status'] = 'stopping'
-                print(f'Switch off received on {message.topic}, {container_name}')
+                logging.info(f'[MQTT -> D2M] Switch off received on {message.topic}, {container_name}')
                 docker_stop_cmd.append(container_name)
                 run(docker_stop_cmd)
                 docker_stop_cmd.remove(container_name)
-                print(f'Stop command sent to docker for {container_name}')
+                logging.info(f'[D2M -> Docker] Stop command sent to docker for {container_name}')
                 sleep(1)
         elif 'restart' in str(message.topic):
             restart_message = re.search(RESTART_TOPIC_REGEX, message.topic)
             container_name = restart_message.group(1)
-            print(f'Extracted container name: {container_name}')
+            logging.debug(f'[D2M] Extracted container name: {container_name}')
             known_containers[container_name]['status'] = 'restarting'
-            print(f'Restart received on {message.topic}, {container_name}')
+            logging.info(f'[MQTT -> D2M] Restart received on {message.topic}, {container_name}')
             docker_restart_cmd.append(container_name)
             run(docker_restart_cmd)
             docker_restart_cmd.remove(container_name)
-            print(f'Restart command sent to docker for {container_name}')
+            logging.info(f'[D2M -> Docker] Restart command sent to docker for {container_name}')
             sleep(1)
 
 def on_log(client, userdata, level, string):
-    print(string)
+    logging.debug(f'[MQTT - D2M] message received {string}')
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print('Connection established to broker')
+        logging.info('[D2M] Connection established to broker')
         mqtt_send(f'{MQTT_TOPIC_PREFIX}/status', 'online', retain=True)
         mqtt_receive('homeassistant/status')
         sleep(10)
     else:
-        print('No connection established to broker')
+        logging.warning('[D2M] No connection established to broker')
 
 def initialize_containers_with_ha():
     global initializing
     global initialized
     initializing = True
     if ha_online == True:
-        print(f'Registering all containers with Home Assistant')
+        logging.info(f'[D2M -> MQTT] Registering all containers with Home Assistant')
         for container in known_containers:
             register_container(container)
     else:
-        print(f'Home assistant not online, skipping autodiscovery.')
+        logging.info(f'[MQTT -> D2M] Home assistant not online, skipping autodiscovery.')
     initialized = True
     initializing = False
 
@@ -179,127 +178,124 @@ def register_container(new_container):
     image = known_containers[new_container]['image']
     registration_topic_status = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_status = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} state',
+        'name': 'state',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_status}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
         'payload_available': 'online',
         'payload_not_available': 'offline',
-        'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_status',
+        'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}',
         'value_template': '{{ value_json.state }}',
         'payload_on': 'on',
         'payload_off': 'off',
         'device_class': 'running',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_status'
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}'
     }
-    mqtt_send_topic_status = f'{MQTT_TOPIC_PREFIX}/{new_container}_status'
     mqtt_send(registration_topic_status, json.dumps(registration_packet_status, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(mqtt_send_topic_status, json.dumps(attributes), retain=True)
+    mqtt_send_topic = f'{MQTT_TOPIC_PREFIX}/{new_container}'
+    mqtt_send(mqtt_send_topic, json.dumps(attributes), retain=True)
+    logging.debug(f'[D2M -> MQTT] Switch topic and packet defined and sent: {registration_topic_status}; {registration_packet_status}')
 
     # Discover switch
     if not ((re.search('home', new_container, re.IGNORECASE) and re.search('assistant', new_container, re.IGNORECASE)) or re.search('docker2mqtt', new_container, re.IGNORECASE)):
         registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', new_container))
         registration_packet_switch = {
-            'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} switch',
+            'name': 'switch',
             'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_switch}',
             'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
             'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
             'payload_available': 'online',
             'payload_not_available': 'offline',
-            'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_status',
-            'command_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_switch/set',
+            'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}',
+            'command_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}/switch',
             'value_template': '{{ value_json.state }}',
             'payload_on': 'on',
             'payload_off': 'off',
             'state_on': 'on',
             'state_off': 'off',
             'optimistic': 'false',
-            'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_switch'
+            'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}'
         }
-        mqtt_send_topic_switch = f'{MQTT_TOPIC_PREFIX}/{new_container}_switch'
-        mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{new_container}_switch/set'
-        print(f'Receive topic defined: {mqtt_receive_topic_switch}')
+        mqtt_receive_topic_switch = f'{MQTT_TOPIC_PREFIX}/{new_container}/switch'
+        logging.debug(f'[D2M -> MQTT] Switch topic and packet defined and sent: {mqtt_receive_topic_switch}; {registration_packet_switch}')
         mqtt_send(registration_topic_switch, json.dumps(registration_packet_switch, default=lambda o: o.__dict__, indent=4), retain=True)
-        mqtt_send(mqtt_send_topic_switch, json.dumps(attributes), retain=True)
         mqtt_receive(mqtt_receive_topic_switch)
 
     # Discover restart button
     registration_topic_restart = DISCOVERY_TOPIC_RESTART.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_restart = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} restart',
+        'name': 'restart',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_restart}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
         'payload_available': 'online',
         'payload_not_available': 'offline',
-        'command_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_restart/set',
+        'command_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}/restart',
         'payload_press': 'restart',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_press'
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}'
     }
-    mqtt_receive_topic_restart = f'{MQTT_TOPIC_PREFIX}/{new_container}_restart/set'
-    print(f'Receive topic defined: {mqtt_receive_topic_restart}')
+    mqtt_receive_topic_restart = f'{MQTT_TOPIC_PREFIX}/{new_container}/restart'
+    logging.debug(f'[D2M -> MQTT] Restart topic and packet defined and sent: {mqtt_receive_topic_restart}; {registration_packet_restart}')
     mqtt_send(registration_topic_restart, json.dumps(registration_packet_restart, default=lambda o: o.__dict__, indent=4), retain=True)
     mqtt_receive(mqtt_receive_topic_restart)
 
     # Discover 'event type' sensor
     registration_topic_event_type = DISCOVERY_TOPIC_EVENT_TYPE.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_event_type = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} event type',
+        'name': 'event type',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_event_type}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
         'payload_available': 'online',
         'payload_not_available': 'offline',
-        'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_event_type',
+        'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}',
         'value_template': '{{ value_json.status }}',
         'payload_on': 'on',
         'payload_off': 'off',
         'icon': 'mdi:play',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_event'
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}'
     }
-    mqtt_send_topic_event_type = f'{MQTT_TOPIC_PREFIX}/{new_container}_event_type'
     mqtt_send(registration_topic_event_type, json.dumps(registration_packet_event_type, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(mqtt_send_topic_event_type, json.dumps(attributes), retain=True)
+    logging.debug(f'[D2M -> MQTT] Event type topic and packet defined and sent: {registration_topic_event_type}; {registration_packet_event_type}')
+
 
     # Discover 'event date' sensor
     registration_topic_event = DISCOVERY_TOPIC_EVENT.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_event = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} event',
+        'name': 'event',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_event}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
         'payload_available': 'online',
         'payload_not_available': 'offline',
-        'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_event',
+        'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}',
         'value_template': '{{ value_json.event }}',
         'payload_on': 'on',
         'payload_off': 'off',
         'device_class': 'timestamp',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_event'
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}'
     }
-    mqtt_send_topic_started = f'{MQTT_TOPIC_PREFIX}/{new_container}_event'
     mqtt_send(registration_topic_event, json.dumps(registration_packet_event, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(mqtt_send_topic_started, json.dumps(attributes), retain=True)
+    logging.debug(f'[D2M -> MQTT] Event date topic and packet defined and sent: {registration_topic_event}; {registration_packet_event}')
 
     # Discover 'created' sensor
     registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', new_container))
     registration_packet_created = {
-        'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container} created',
+        'name': 'created',
         'unique_id': f'{MQTT_TOPIC_PREFIX}_{registration_topic_created}',
         'device': {'identifiers': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'name': f'{HOMEASSISTANT_NAME_PREFIX.title()} {new_container}', 'model': f'{HOMEASSISTANT_NAME_PREFIX.title()} {image}', 'manufacturer': 'Docker', 'suggested_area': 'Media' },
         'availability_topic': f'{MQTT_TOPIC_PREFIX}/status',
         'payload_available': 'online',
         'payload_not_available': 'offline',
-        'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_created',
+        'state_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}',
         'value_template': '{{ value_json.created }}',
         'payload_on': 'on',
         'payload_off': 'off',
         'device_class': 'timestamp',
-        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}_created'
+        'json_attributes_topic': f'{MQTT_TOPIC_PREFIX}/{new_container}'
     }
-    mqtt_send_topic_created = f'{MQTT_TOPIC_PREFIX}/{new_container}_created'
     mqtt_send(registration_topic_created, json.dumps(registration_packet_created, default=lambda o: o.__dict__, indent=4), retain=True)
-    mqtt_send(mqtt_send_topic_created, json.dumps(attributes), retain=True)
+    logging.debug(f'[D2M -> MQTT] Created date topic and packet defined and sent: {registration_topic_created}; {registration_packet_created}')
 
 def status_mapping(status):
     if status in ['starting','restarting']:
@@ -317,12 +313,12 @@ def readline_thread():
                 docker_events.put(proc.stdout.readline())
             except AttributeError:
                 remove_non_json = re.search(JSON_ONLY_REGEX, proc.stdout.readline())
-                print(f'Mixed message received')
+                logging.debug(f'[Docker -> D2M] Mixed message received')
                 remaining_json = remove_non_json.group(1)
                 container_id = remove_non_json.group(2)
-                print(f'Message separated')
+                logging.debug(f'[D2M] Message separated')
                 docker_events.put(remaining_json)
-                now = datetime.now()
+                now = (datetime.now()).isoformat()
                 if container_id in known_containers and known_containers[container_id]['status'] in ['running','stopped','restarting']:
                     state = status_mapping(known_containers[container_id]['status'])
                     new_status = known_containers[container_id]['status']
@@ -331,15 +327,15 @@ def readline_thread():
                         'status': new_status,
                         'event': now
                     }
-                    mqtt_send_status_update_state = f'{MQTT_TOPIC_PREFIX}/{known_containers["container"]}_state'
-                    mqtt_send_status_update_event_type = f'{MQTT_TOPIC_PREFIX}/{known_containers["container"]}_event_type'
-                    mqtt_send_status_update_event = f'{MQTT_TOPIC_PREFIX}/{known_containers["container"]}_event'
-                    mqtt_send(mqtt_send_status_update_state, json.dumps(status_update), retain=True)
-                    mqtt_send(mqtt_send_status_update_event_type, json.dumps(status_update), retain=True)
-                    mqtt_send(mqtt_send_status_update_event, json.dumps(status_update), retain=True)
+                    mqtt_send_status_update = f'{MQTT_TOPIC_PREFIX}/{known_containers["container"]}'
+                    mqtt_send(mqtt_send_status_update, json.dumps(status_update), retain=True)
+                    logging.debug(f'[D2M -> MQTT] Status update sent: {status_update}')
                     del(known_containers[container_id])
 
 def process_status_message(event, container):
+    stoptime = (datetime.fromtimestamp(event['time'])).strftime("%Y-%m-%dT%H:%M:%SZ")
+    logging.debug(f'Event time: {stoptime}')
+    logging.debug(f'Event details: {event}')
     if event['status'] in UP_EVENTS:
         docker_event_inspect = docker_inspect_cmd
         docker_event_inspect.append(container)
@@ -351,12 +347,13 @@ def process_status_message(event, container):
             ip[adapter] = container_event_details['NetworkSettings']['Networks'][adapter]['IPAddress']
             ipaddress = f'{ip[adapter]}'
 
+
     if event['status'] in WATCHED_EVENTS:
         if event['status'] == 'create':
             # Cancel any previous pending destroys and add this to known_containers.
-            print(f'Container {container} has been created.')
+            logging.debug(f'[Docker -> D2M] Container {container} has been created.')
             if container in pending_destroy_operations:
-                print(f'Removing pending delete for {{container}}.')
+                logging.debug(f'[Docker -> D2M] Removing pending delete for {{container}}.')
                 del(pending_destroy_operations[container])
 
             known_containers[container] = {
@@ -372,44 +369,35 @@ def process_status_message(event, container):
 
         elif event['status'] == 'destroy':
             # Add this container to pending_destroy_operations.
-            print(f'Container {container} has been destroyed.')
+            logging.debug(f'[Docker -> D2M] Container {container} has been destroyed at {stoptime}.')
             pending_destroy_operations[container] = time()
             known_containers[container]['status'] = 'destroyed'
             known_containers[container]['state'] = 'off'
-            known_containers[container]['created'] = 'unavailable'
-            known_containers[container]['event'] = 'unavailable'
-            known_containers[container]['ip'] = None
+            known_containers[container]['event'] = stoptime
 
-
-        elif event['status'] == 'die':
-            print(f'Container {container} has stopped.')
+        elif event['status'] in ['die','stop']:
+            logging.info(f'[Docker -> D2M] Container {container} has stopped at {stoptime}.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = container_event_details['Created']
-            known_containers[container]['event'] = container_event_details['State']['FinishedAt']
-            known_containers[container]['ip'] = None
+            known_containers[container]['event'] = stoptime
 
         elif event['status'] == 'pause':
-            print(f'Container {container} has paused.')
+            logging.debug(f'[Docker -> D2M] Container {container} has paused at {stoptime}.')
             known_containers[container]['status'] = 'paused'
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = container_event_details['Created']
-            known_containers[container]['event'] = container_event_details['State']['FinishedAt']
-            known_containers[container]['ip'] = None
+            known_containers[container]['event'] = stoptime
 
         elif event['status'] == 'rename':
             old_name = event['Actor']['Attributes']['oldName']
             if old_name.startswith('/'):
                 old_name = old_name[1:]
-            print(f'Container {old_name} renamed to {container}.')
+            logging.debug(f'[Docker -> D2M] Container {old_name} renamed to {container}.')
             mqtt_send(f'{HOMEASSISTANT_PREFIX}/binary_sensor/{old_name}_status/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
             mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_event/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
             mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_event_type/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
             mqtt_send(f'{HOMEASSISTANT_PREFIX}/sensor/{old_name}_created/config', '', retain=True)
-            mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
             mqtt_send(f'{HOMEASSISTANT_PREFIX}/switch/{old_name}_switch/config', '', retain=True)
             mqtt_send(f'{MQTT_TOPIC_PREFIX}/{old_name}', '', retain=True)
 
@@ -426,7 +414,7 @@ def process_status_message(event, container):
             del(known_containers[old_name])
 
         elif event['status'] == 'start':
-            print(f'Container {container} has started.')
+            logging.info(f'[Docker -> D2M] Container {container} has started.')
             known_containers[container]['status'] = 'started'
             known_containers[container]['state'] = 'on'
             known_containers[container]['created'] = container_event_details['Created']
@@ -434,33 +422,30 @@ def process_status_message(event, container):
             known_containers[container]['ip'] = ipaddress
 
         elif event['status'] == 'unpause':
-            print(f'Container {container} has unpaused.')
+            logging.debug(f'[Docker -> D2M] Container {container} has unpaused.')
             known_containers[container]['status'] = 'starting'
             known_containers[container]['state'] = 'on'
             known_containers[container]['created'] = container_event_details['Created']
             known_containers[container]['event'] = container_event_details['State']['StartedAt']
             known_containers[container]['ip'] = ipaddress
 
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', json.dumps(known_containers[container]), retain=True)
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_event', json.dumps(known_containers[container]), retain=True)
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_event_type', json.dumps(known_containers[container]), retain=True)
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_started', json.dumps(known_containers[container]), retain=True)
-        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_created', json.dumps(known_containers[container]), retain=True)
+        mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}', json.dumps(known_containers[container]), retain=True)
+        logging.debug(f'Updated container details: {known_containers[container]}')
 
 def run_docker_ps():
     # Register containers with HA
     docker_ps = run(docker_ps_cmd, stdout=PIPE, text=True)
     for line in docker_ps.stdout.splitlines():
         container_status = json.loads(line)
-        print(json.loads(line))
+        logging.info(f'[Docker -> D2M] Message received {container_status}')
         docker_register_inspect = docker_inspect_cmd
         docker_register_inspect.append(container_status['Names'])
         container_inspect = run(docker_register_inspect, stdout=PIPE, text=True)
         container_details = json.loads(container_inspect.stdout)
-        print(container_details)
+        logging.debug(f'[Docker -> D2M] Container inspected and details received: {container_details}')
         docker_register_inspect.remove(container_status['Names'])
         created = container_details['Created']
-        ip ={}
+        ip = {}
         for adapter in container_details['NetworkSettings']['Networks']:
             ip[adapter] = container_details['NetworkSettings']['Networks'][adapter]['IPAddress']
             ipaddress = f'{ip[adapter]}'
@@ -478,7 +463,7 @@ def run_docker_ps():
             state_str = 'off'
             event = container_details['State']['FinishedAt']
         
-        print(f'Container details for {container_status["Names"]} added to registry')
+        logging.debug(f'[D2M] Container details for {container_status["Names"]} added to registry')
         known_containers[container_status['Names']] = {
             'name': container_status['Names'],
             'image': container_status['Image'],
@@ -488,8 +473,8 @@ def run_docker_ps():
             'event': event,
             'ip': ipaddress
         }
-        print(f'{known_containers[container_status["Names"]]}')
-    print(f'All container details read from Docker')
+        logging.debug(f'[D2M] All container details: {known_containers[container_status["Names"]]}')
+    logging.info(f'[D2M] All container details read from Docker')
 
 def docker_events_process():
     docker_events_t = Thread(target=readline_thread, daemon=True)
@@ -500,22 +485,18 @@ def docker_events_process():
         # Remove any destroyed containers that have passed the TTL
         for container, destroyed_at in pending_destroy_operations.copy().items():
             if time() - destroyed_at > DESTROYED_CONTAINER_TTL:
-                print(f'Removing container {container} from MQTT.')
+                logging.debug(f'[D2M -> MQTT] Removing container {container} from MQTT.')
                 registration_topic_state = DISCOVERY_TOPIC_STATE.format(invalid_ha_topic_chars.sub('_', container))
                 mqtt_send(registration_topic_state, '', retain=True)
-                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_status', '', retain=True)
                 registration_topic_event = DISCOVERY_TOPIC_EVENT.format(invalid_ha_topic_chars.sub('_', container))
                 mqtt_send(registration_topic_event, '', retain=True)
-                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_event', '', retain=True)
                 registration_topic_event_type = DISCOVERY_TOPIC_EVENT.format(invalid_ha_topic_chars.sub('_', container))
                 mqtt_send(registration_topic_event_type, '', retain=True)
-                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_event_type', '', retain=True)
                 registration_topic_created = DISCOVERY_TOPIC_CREATED.format(invalid_ha_topic_chars.sub('_', container))
                 mqtt_send(registration_topic_created, '', retain=True)
-                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_created', '', retain=True)
                 registration_topic_switch = DISCOVERY_TOPIC_SWITCH.format(invalid_ha_topic_chars.sub('_', container))
                 mqtt_send(registration_topic_switch, '', retain=True)
-                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}_switch', '', retain=True)
+                mqtt_send(f'{MQTT_TOPIC_PREFIX}/{container}', '', retain=True)
                 del(pending_destroy_operations[container])
                 del(known_containers[container])
 
@@ -528,9 +509,9 @@ def docker_events_process():
  
         event = json.loads(line)
         if event['status'] not in WATCHED_EVENTS:
+            logging.debug(f'[Docker -> D2M] Latest docker event (unwatched event): {event["status"]}')
             continue
-        print(json.loads(line))
-
+            
         container = event['Actor']['Attributes']['name']
 
         try:
@@ -539,6 +520,8 @@ def docker_events_process():
             continue
 
 if __name__ == '__main__':
+    logformat = '%(asctime)s %(levelname)s %(message)s'
+    logging.basicConfig(format=logformat,level=LOGGING)
     run_docker_ps()
     mqtt_connect()
     docker_events_process()
