@@ -1,6 +1,6 @@
 # docker2mqtt - Deliver docker status information and basic control over MQTT
 
-![Maintenance](https://img.shields.io/maintenance/yes/2023.svg)
+![Maintenance](https://img.shields.io/maintenance/yes/2024.svg)
 [![Docker Pulls](https://img.shields.io/docker/pulls/markxroberts/docker2mqtt)](https://hub.docker.com/r/markxroberts/docker2mqtt)
 [![buy me a coffee](https://img.shields.io/badge/If%20you%20like%20it-Buy%20me%20a%20coffee-orange.svg)](https://www.buymeacoffee.com/markxr)
 
