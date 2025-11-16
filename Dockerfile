@@ -4,7 +4,7 @@ ENV LANG=C.UTF-8
 
 # Pre-reqs
 RUN apt update && \
-    apt install --no-install-recommends -y apt-transport-https ca-certificates curl gnupg gnupg-agent software-properties-common && \
+    apt install --no-install-recommends -y apt-transport-https ca-certificates curl gnupg gnupg-agent && \
     curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
     chmod a+r /etc/apt/keyrings/docker.asc
 RUN tee /etc/apt/sources.list.d/docker.sources <<EOF
