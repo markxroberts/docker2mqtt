@@ -7,13 +7,13 @@ RUN apt update && \
     apt install --no-install-recommends -y apt-transport-https ca-certificates curl gnupg gnupg-agent software-properties-common && \
     curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
     chmod a+r /etc/apt/keyrings/docker.asc &&\
-    tee /etc/apt/sources.list.d/docker.sources <<EOF
-    Types: deb
-    URIs: https://download.docker.com/linux/debian
-    Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
-    Components: stable
-    Signed-By: /etc/apt/keyrings/docker.asc
-    EOF &&\
+    tee /etc/apt/sources.list.d/docker.sources &&\
+    Types: deb &&\
+    URIs: https://download.docker.com/linux/debian &&\
+    Suites: $(. /etc/os-release && echo "$VERSION_CODENAME") &&\
+    Components: stable &&\
+    Signed-By: /etc/apt/keyrings/docker.asc &&\
+    &&\
     apt update && \
     apt install --no-install-recommends -y docker-ce-cli python3-paho-mqtt && \
     rm -rf /var/lib/apt/lists/*
