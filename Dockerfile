@@ -13,7 +13,7 @@ RUN apt update && \
     Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
     Components: stable
     Signed-By: /etc/apt/keyrings/docker.asc
-    EOF 
+EOF 
     apt update && \
     apt install --no-install-recommends -y docker-ce-cli python3-paho-mqtt && \
     rm -rf /var/lib/apt/lists/*
