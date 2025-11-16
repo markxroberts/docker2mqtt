@@ -4,7 +4,7 @@ ENV LANG=C.UTF-8
 
 # Pre-reqs
 RUN apt update && \
-    apt install --no-install-recommends -y apt-transport-https ca-certificates curl gnupg gnupg-agent && \
+    apt install -y apt-transport-https ca-certificates curl gnupg gnupg-agent && \
     install -m 0755 -d /etc/apt/keyrings &&\
     curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
     chmod a+r /etc/apt/keyrings/docker.asc
@@ -16,7 +16,7 @@ RUN tee /etc/apt/sources.list.d/docker.sources <<EOF
     Signed-By: /etc/apt/keyrings/docker.asc
 EOF
 RUN apt update && \
-    apt install --no-install-recommends -y docker-ce-cli python3-paho-mqtt && \
+    apt install -y docker-ce-cli python3-paho-mqtt && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy files into place
