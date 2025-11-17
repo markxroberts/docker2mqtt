@@ -43,7 +43,7 @@ JSON_ONLY_REGEX = r'^(\{.*\})(\.*)$'
 docker_events = queue.Queue()
 known_containers = {}
 pending_destroy_operations = {}
-docker_events_cmd = ['docker', 'events', '-f', 'type=container', '--format', '{{json .}}']
+docker_events_cmd = ['docker', 'system', 'events', '-f', 'type=container', '--format', '{{json .}}']
 docker_ps_cmd = ['docker', 'ps', '-a', '--format', '{{json .}}']
 docker_inspect_cmd = ['docker', 'inspect', '--format', '{{json .}}' ]
 docker_start_cmd = ['docker', 'start']
@@ -53,7 +53,7 @@ invalid_ha_topic_chars = re.compile(r'[^a-zA-Z0-9_-]')
 ha_online = False
 initialized = False
 initializing = False
-client = mqtt.Client(f'{MQTT_CLIENT_ID}')
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1,f'{MQTT_CLIENT_ID}')
 
 @atexit.register
 def mqtt_disconnect():
@@ -336,7 +336,7 @@ def process_status_message(event, container):
     stoptime = (datetime.fromtimestamp(event['time'])).strftime("%Y-%m-%dT%H:%M:%SZ")
     logging.debug(f'Event time: {stoptime}')
     logging.debug(f'Event details: {event}')
-    if event['status'] in UP_EVENTS:
+    if event['Action'] in UP_EVENTS:
         docker_event_inspect = docker_inspect_cmd
         docker_event_inspect.append(container)
         container_event_inspect = run(docker_event_inspect, stdout=PIPE, text=True)
@@ -348,8 +348,8 @@ def process_status_message(event, container):
             ipaddress = f'{ip[adapter]}'
 
 
-    if event['status'] in WATCHED_EVENTS:
-        if event['status'] == 'create':
+    if event['Action'] in WATCHED_EVENTS:
+        if event['Action'] == 'create':
             # Cancel any previous pending destroys and add this to known_containers.
             logging.debug(f'[Docker -> D2M] Container {container} has been created.')
             if container in pending_destroy_operations:
@@ -367,7 +367,7 @@ def process_status_message(event, container):
             }
             register_container(known_containers[container])
 
-        elif event['status'] == 'destroy':
+        elif event['Action'] == 'destroy':
             # Add this container to pending_destroy_operations.
             logging.debug(f'[Docker -> D2M] Container {container} has been destroyed at {stoptime}.')
             pending_destroy_operations[container] = time()
@@ -375,21 +375,21 @@ def process_status_message(event, container):
             known_containers[container]['state'] = 'off'
             known_containers[container]['event'] = stoptime
 
-        elif event['status'] in ['die','stop']:
+        elif event['Action'] in ['die','stop']:
             logging.info(f'[Docker -> D2M] Container {container} has stopped at {stoptime}.')
             known_containers[container]['status'] = 'stopped'
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = container_event_details['Created']
             known_containers[container]['event'] = stoptime
 
-        elif event['status'] == 'pause':
+        elif event['Action'] == 'pause':
             logging.debug(f'[Docker -> D2M] Container {container} has paused at {stoptime}.')
             known_containers[container]['status'] = 'paused'
             known_containers[container]['state'] = 'off'
             known_containers[container]['created'] = container_event_details['Created']
             known_containers[container]['event'] = stoptime
 
-        elif event['status'] == 'rename':
+        elif event['Action'] == 'rename':
             old_name = event['Actor']['Attributes']['oldName']
             if old_name.startswith('/'):
                 old_name = old_name[1:]
@@ -413,7 +413,7 @@ def process_status_message(event, container):
             register_container(known_containers[container])
             del(known_containers[old_name])
 
-        elif event['status'] == 'start':
+        elif event['Action'] == 'start':
             logging.info(f'[Docker -> D2M] Container {container} has started.')
             known_containers[container]['status'] = 'started'
             known_containers[container]['state'] = 'on'
@@ -421,7 +421,7 @@ def process_status_message(event, container):
             known_containers[container]['event'] = container_event_details['State']['StartedAt']
             known_containers[container]['ip'] = ipaddress
 
-        elif event['status'] == 'unpause':
+        elif event['Action'] == 'unpause':
             logging.debug(f'[Docker -> D2M] Container {container} has unpaused.')
             known_containers[container]['status'] = 'starting'
             known_containers[container]['state'] = 'on'
@@ -508,8 +508,8 @@ def docker_events_process():
             continue
  
         event = json.loads(line)
-        if event['status'] not in WATCHED_EVENTS:
-            logging.debug(f'[Docker -> D2M] Latest docker event (unwatched event): {event["status"]}')
+        if event['Action'] not in WATCHED_EVENTS:
+            logging.debug(f'[Docker -> D2M] Latest docker event (unwatched event): {event["Action"]}')
             continue
             
         container = event['Actor']['Attributes']['name']
