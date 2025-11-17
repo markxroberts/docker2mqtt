@@ -509,7 +509,7 @@ def docker_events_process():
  
         event = json.loads(line)
         if event['Action'] not in WATCHED_EVENTS:
-            logging.debug(f'[Docker -> D2M] Latest docker event (unwatched event): {event["status"]}')
+            logging.debug(f'[Docker -> D2M] Latest docker event (unwatched event): {event["Action"]}')
             continue
             
         container = event['Actor']['Attributes']['name']
