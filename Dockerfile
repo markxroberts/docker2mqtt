@@ -3,18 +3,19 @@ ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 # Pre-reqs
-RUN apt update && \
+RUN --no-cache apt update && \
     apt install -y apt-transport-https ca-certificates curl gnupg gnupg-agent && \
     install -m 0755 -d /etc/apt/keyrings &&\
     curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
     chmod a+r /etc/apt/keyrings/docker.asc
 RUN tee /etc/apt/sources.list.d/docker.sources <<EOF
-    Types: deb
-    URIs: https://download.docker.com/linux/debian
-    Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
-    Components: stable
-    Signed-By: /etc/apt/keyrings/docker.asc
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
 EOF
+
 RUN apt update && \
     apt install -y docker-ce-cli python3-paho-mqtt && \
     rm -rf /var/lib/apt/lists/*
