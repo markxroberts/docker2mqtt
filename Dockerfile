@@ -3,7 +3,7 @@ ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 # Pre-reqs
-RUN --no-cache apt update && \
+RUN apt update && \
     apt install -y apt-transport-https ca-certificates curl gnupg gnupg-agent && \
     install -m 0755 -d /etc/apt/keyrings &&\
     curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
